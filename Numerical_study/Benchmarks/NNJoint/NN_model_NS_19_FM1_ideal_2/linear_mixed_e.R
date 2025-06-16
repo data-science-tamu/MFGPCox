@@ -1,0 +1,101 @@
+library(nlme)
+
+rm(list=ls())
+
+# Initialize empty vectors for storing results
+prior.sigma20 <- c()   # residual variances
+prior.MUB0    <- c()   # fixed-effects estimates
+prior.sigmab0 <- c()   # random-effects variance-covariance (flattened)
+B             <- c()   # random-effects by subject
+
+# Read your data
+TEMP <- read.csv("Training/processed_data_fm1_ideal.csv", header=TRUE)
+
+# Construct the data frames
+bdata <- data.frame(
+  id            = TEMP$ID,
+  obstime       = TEMP$time,
+  degradation1  = TEMP$degradation1, 
+  degradation2  = TEMP$degradation2
+)
+
+# 'output' will store fitted values
+output <- data.frame(id = TEMP$ID, obstime = TEMP$time)
+
+# Identify the outcome columns
+names <- colnames(bdata)[3:ncol(bdata)]  # e.g. c("degradation1", "degradation2")
+j = 0
+
+# Loop through each outcome column
+for (i in names) {
+  
+  # Choose exponents / transformations depending on column name
+  if (i == "degradation1") {
+    # For degradation1: [1, 0.3*(t^0.6 * sin(t)), t^2]
+    fixed_terms  <- c("I(0.3*(obstime^0.6*sin(obstime)))", "I(obstime^2)")
+    random_terms <- c("I(0.3*(obstime^0.6*sin(obstime)))", "I(obstime^2)")
+    
+  } else if (i == "degradation2") {
+    # For degradation2: [1, t^1.5, t^2]
+    fixed_terms  <- c("I(obstime^1.5)", "I(obstime^2)")
+    random_terms <- c("I(obstime^1.5)", "I(obstime^2)")
+    
+  } else {
+    # If there are more columns, define them or skip
+    next
+  }
+  
+  # Construct formula for the fixed effects
+  # E.g. i ~ I(0.3*(obstime^0.6*sin(obstime))) + I(obstime^2)
+  fml_fixed <- as.formula(
+    paste(i, "~", paste(fixed_terms, collapse = "+"))
+  )
+  
+  # Construct formula for the random effects
+  # E.g. ~ I(0.3*(obstime^0.6*sin(obstime))) + I(obstime^2) | id
+  fml_random <- as.formula(
+    paste("~", paste(random_terms, collapse = "+"), "| id")
+  )
+  
+  # Fit the LME
+  fitlme <- lme(
+    fixed   = fml_fixed,
+    random  = fml_random,
+    data    = bdata,
+    control = lmeControl(opt = "optim")
+  )
+  
+  # Store fitted values for this outcome in 'output'
+  output[, 3 + j] <- fitted(fitlme)
+  
+  # Extract residual variance
+  sigma20 <- (fitlme$sigma)^2
+  
+  # Extract fixed effects
+  MUB0 <- fitlme$coefficients$fixed
+  
+  # Extract random-effects variance-covariance
+  SIGMAB0 <- var(fitlme$coefficients$random$id)
+  
+  # Extract the random effects for each subject
+  B_i <- coef(fitlme)
+  
+  # Append to vectors
+  prior.sigma20 <- append(prior.sigma20, sigma20)
+  prior.MUB0    <- append(prior.MUB0,    MUB0)
+  prior.sigmab0 <- append(prior.sigmab0, SIGMAB0)
+  B             <- append(B,             B_i)
+  
+  j <- j + 1
+}
+
+# Rename output columns appropriately
+colnames(output) <- c("id", "obstime", "fitted_deg1", "fitted_deg2")
+
+# Write results to CSV
+write.csv(prior.sigma20, file = "Training/sigma20.csv")
+write.csv(prior.MUB0,    file = "Training/MUB0.csv")
+write.csv(prior.sigmab0, file = "Training/SIGMAB0.csv")
+write.csv(output,        file = "Training/training_no_noise.csv", row.names=FALSE)
+write.csv(bdata,         file = "Training/training_noise.csv",    row.names=FALSE)
+write.csv(B,             file = "Training/B.csv",                 row.names=FALSE)

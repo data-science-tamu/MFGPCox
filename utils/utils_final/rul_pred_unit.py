@@ -1,0 +1,1833 @@
+import torch
+from utils.utils_final.CMGP import *
+
+
+def process_unit_data(train_data, all_data, device):
+    # Initialize dictionaries for storing event times
+    train_units_event_time = {}
+    test_units_event_time = {}
+
+    # Get unique unit numbers from train and all data
+    unique_historical_units = train_data['unit number'].unique()
+    unique_units = all_data['unit number'].unique()
+
+    # Identify train units
+    train_unit_range = unique_historical_units
+
+    # Calculate max event time for each unit and categorize as train or test
+    for unit in unique_units:
+        subset_df = all_data[all_data['unit number'] == unit]
+        max_event_time = subset_df['time, in cycles'].max()
+        event_time_tensor = torch.tensor(max_event_time, dtype=torch.float32, device=device)
+        if unit in train_unit_range:
+            train_units_event_time[unit] = event_time_tensor
+        else:
+            test_units_event_time[unit] = event_time_tensor
+
+    # Calculate minimum event time for each failure mode
+    failure_mode_groups = train_data.groupby('failure mode')
+    min_V_by_failure_mode = {}
+    for failure_mode, group in failure_mode_groups:
+        train_units_event_time_mode = {
+            unit: train_units_event_time[unit]
+            for unit in group['unit number'].unique()
+            if unit in train_units_event_time
+        }
+        if train_units_event_time_mode:
+            V = torch.tensor(list(train_units_event_time_mode.values()))
+            min_V_by_failure_mode[failure_mode] = V.min()
+
+    # Create dictionaries for unit status, manufacture status, and failure mode
+    unit_status = {}
+    unit_manufac = {}
+    unit_failure_mode = {}
+
+    for unit in unique_units:
+        subset_df = all_data[all_data['unit number'] == unit]
+        unit_status[unit] = torch.tensor(1, dtype=torch.float32, device=device)  # Default status as failure
+        unit_manufac[unit] = torch.tensor(0, dtype=torch.float32, device=device)  # Default manufacture status
+        failure = subset_df['failure mode'].max()
+        unit_failure_mode[unit] = failure
+
+    # Return all calculated dictionaries
+    return (train_units_event_time, test_units_event_time, min_V_by_failure_mode,
+            unit_status, unit_manufac, unit_failure_mode)
+
+
+def likelihood(sensor_readings, predicted, cov, device='cuda'):
+    y = sensor_readings
+    _, log_det = torch.linalg.slogdet(cov)
+    log_likelihood = -0.5 * (y - predicted).transpose(0, 1) @ torch.linalg.solve(cov, (
+            y - predicted)) - 0.5 * log_det - y.size(0) / 2 * torch.log(torch.tensor(2 * torch.pi, device=device))
+    l = log_likelihood
+    likelihood = torch.exp(l)
+    return likelihood, l
+
+
+def probability_of_failure(data_dicts, all_sensor_readings, loaded_hyperparameters, loaded_lambda_hyp,
+                           approx_cov_results, unit, actual_failure, pi_hat, sensor):
+    data_dict = data_dicts.get((sensor, actual_failure))
+    historical_inputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['time_points'],
+                                     device=device)
+
+    historical_outputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['sensor_readings'],
+                                      dtype=torch.float32,
+                                      device=device).unsqueeze(-1)
+
+    means_1, variance_1 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               1,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    means_2, variance_2 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               2,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    means_3, variance_3 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               3,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    prob1, log_like1 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_1.squeeze().unsqueeze(-1),
+                                  variance_1.squeeze())
+    prob2, log_like2 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_2.squeeze().unsqueeze(-1),
+                                  variance_2.squeeze())
+    prob3, log_like3 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_3.squeeze().unsqueeze(-1),
+                                  variance_3.squeeze())
+
+    # print(f'unit:{unit} ==> log_likelihood_1: {log_like1.item()}, log_likelihood_2: {log_like2.item()}, '
+    #       f'log_likelihood_3: {log_like3.item()}')
+    # print(f'unit:{unit} ==> likelihood_1: {prob1.item()}, likelihood_2: {prob2.item()}, likelihood_3: {prob3.item()}')
+
+    max_log_likelihood = max(log_like1, log_like2, log_like3).item()
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    max_log_likelihood = max(log_like1, log_like2, log_like3).item()
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    if max_log_likelihood > 88:
+        subtract_value = max_log_likelihood - 88
+
+        # Subtract the necessary value from all log-likelihoods
+        log_like1 -= subtract_value
+        log_like2 -= subtract_value
+        log_like3 -= subtract_value
+
+        # Recalculate the probabilities after adjustment
+        prob1 = torch.exp(log_like1)
+        prob2 = torch.exp(log_like2)
+        prob3 = torch.exp(log_like3)
+    # print(sensor)
+    # print(f'unit:{unit} ==> Re_log_likelihood_1: {log_like1.item()}, Re_log_likelihood_2: {log_like2.item()}, '
+    #       f'Re_log_likelihood_3: {log_like3.item()}')
+    # print(
+    #     f'unit:{unit} ==> Re_likelihood_1: {prob1.item()}, Re_likelihood_2: {prob2.item()}, Re_likelihood_3: {prob3.item()}')
+
+    # print(f'unit:{unit} ==> likelihood_1: {prob1.item()}, likelihood_2: {prob2.item()}, likelihood_3: {prob3.item()}')
+
+    pi1 = pi_hat.get(1)
+    pi2 = pi_hat.get(2)
+    pi3 = pi_hat.get(3)
+    # n = len(historical_inputs)
+
+    denominator = pi1 * prob1 + pi2 * prob2 + pi3 * prob3
+
+    prob_one = (pi1 * prob1) / denominator
+    prob_two = (pi2 * prob2) / denominator
+    prob_three = (pi3 * prob3) / denominator
+
+    # denominator = pi1**n * prob1 + pi2**n * prob2 + pi3**n * prob3
+    #
+    # prob_one = (pi1**n * prob1) / denominator
+    # prob_two = (pi2**n * prob2) / denominator
+    # prob_three = (pi3**n * prob3) / denominator
+
+    # Check for NaN and replace with 1 if necessary
+    prob_one = torch.where(torch.isnan(prob_one), torch.tensor(1.0), prob_one)
+    prob_two = torch.where(torch.isnan(prob_two), torch.tensor(1.0), prob_two)
+    prob_three = torch.where(torch.isnan(prob_three), torch.tensor(1.0), prob_three)
+
+    return prob_one, prob_two, prob_three
+
+
+def probability_of_failure_all_test(data_dict_test, data_dicts, all_sensor_readings, loaded_hyperparameters,
+                                    loaded_lambda_hyp,
+                                    approx_cov_results, unit, actual_failure, pi_hat, sensor):
+    data_dict = data_dict_test.get((sensor, actual_failure))
+    historical_inputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['time_points'],
+                                     device=device)
+
+    historical_outputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['sensor_readings'],
+                                      dtype=torch.float32,
+                                      device=device).unsqueeze(-1)
+
+    means_1, variance_1 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               1,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    means_2, variance_2 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               2,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    means_3, variance_3 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               3,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    prob1, log_like1 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_1.squeeze().unsqueeze(-1),
+                                  variance_1.squeeze())
+    prob2, log_like2 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_2.squeeze().unsqueeze(-1),
+                                  variance_2.squeeze())
+    prob3, log_like3 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_3.squeeze().unsqueeze(-1),
+                                  variance_3.squeeze())
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    max_log_likelihood = max(log_like1, log_like2, log_like3).item()
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    if max_log_likelihood > 88:
+        subtract_value = max_log_likelihood - 88
+
+        # Subtract the necessary value from all log-likelihoods
+        log_like1 -= subtract_value
+        log_like2 -= subtract_value
+        log_like3 -= subtract_value
+
+        # Recalculate the probabilities after adjustment
+        prob1 = torch.exp(log_like1)
+        prob2 = torch.exp(log_like2)
+        prob3 = torch.exp(log_like3)
+    # print(sensor)
+    # print(f'unit:{unit} ==> Re_log_likelihood_1: {log_like1.item()}, Re_log_likelihood_2: {log_like2.item()}, '
+    #       f'Re_log_likelihood_3: {log_like3.item()}')
+    # print(
+    #     f'unit:{unit} ==> Re_likelihood_1: {prob1.item()}, Re_likelihood_2: {prob2.item()}, Re_likelihood_3: {prob3.item()}')
+
+    # print(f'unit:{unit} ==> likelihood_1: {prob1.item()}, likelihood_2: {prob2.item()}, likelihood_3: {prob3.item()}')
+
+    pi1 = pi_hat.get(1)
+    pi2 = pi_hat.get(2)
+    pi3 = pi_hat.get(3)
+    # n = len(historical_inputs)
+
+    denominator = pi1 * prob1 + pi2 * prob2 + pi3 * prob3
+
+    prob_one = (pi1 * prob1) / denominator
+    prob_two = (pi2 * prob2) / denominator
+    prob_three = (pi3 * prob3) / denominator
+
+    # denominator = pi1**n * prob1 + pi2**n * prob2 + pi3**n * prob3
+    #
+    # prob_one = (pi1**n * prob1) / denominator
+    # prob_two = (pi2**n * prob2) / denominator
+    # prob_three = (pi3**n * prob3) / denominator
+
+    # Check for NaN and replace with 1 if necessary
+    prob_one = torch.where(torch.isnan(prob_one), torch.tensor(1.0), prob_one)
+    prob_two = torch.where(torch.isnan(prob_two), torch.tensor(1.0), prob_two)
+    prob_three = torch.where(torch.isnan(prob_three), torch.tensor(1.0), prob_three)
+
+    return prob_one, prob_two, prob_three
+
+
+def probability_of_failure_hist(slice_value, data_dicts, all_sensor_readings, loaded_hyperparameters, loaded_lambda_hyp,
+                                approx_cov_results, unit, actual_failure, pi_hat, sensor):
+    data_dict = data_dicts.get((sensor, actual_failure))
+    historical_inputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['time_points'][:slice_value],
+                                     device=device)
+
+    historical_outputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['sensor_readings'][:slice_value],
+                                      dtype=torch.float32,
+                                      device=device).unsqueeze(-1)
+
+    means_1, variance_1 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               1,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    means_2, variance_2 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               2,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    means_3, variance_3 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               3,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    prob1, log_like1 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_1.squeeze().unsqueeze(-1),
+                                  variance_1.squeeze())
+    prob2, log_like2 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_2.squeeze().unsqueeze(-1),
+                                  variance_2.squeeze())
+    prob3, log_like3 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_3.squeeze().unsqueeze(-1),
+                                  variance_3.squeeze())
+
+    # print(f'unit:{unit} ==> log_likelihood_1: {log_like1.item()}, log_likelihood_2: {log_like2.item()}, '
+    #       f'log_likelihood_3: {log_like3.item()}')
+    # print(f'unit:{unit} ==> likelihood_1: {prob1.item()}, likelihood_2: {prob2.item()}, likelihood_3: {prob3.item()}')
+
+    max_log_likelihood = max(log_like1, log_like2, log_like3).item()
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    max_log_likelihood = max(log_like1, log_like2, log_like3).item()
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    if max_log_likelihood > 88:
+        subtract_value = max_log_likelihood - 88
+
+        # Subtract the necessary value from all log-likelihoods
+        log_like1 -= subtract_value
+        log_like2 -= subtract_value
+        log_like3 -= subtract_value
+
+        # Recalculate the probabilities after adjustment
+        prob1 = torch.exp(log_like1)
+        prob2 = torch.exp(log_like2)
+        prob3 = torch.exp(log_like3)
+    # print(sensor)
+    # print(f'unit:{unit} ==> Re_log_likelihood_1: {log_like1.item()}, Re_log_likelihood_2: {log_like2.item()}, '
+    #       f'Re_log_likelihood_3: {log_like3.item()}')
+    # print(
+    #     f'unit:{unit} ==> Re_likelihood_1: {prob1.item()}, Re_likelihood_2: {prob2.item()}, Re_likelihood_3: {prob3.item()}')
+
+    # print(f'unit:{unit} ==> likelihood_1: {prob1.item()}, likelihood_2: {prob2.item()}, likelihood_3: {prob3.item()}')
+
+    pi1 = pi_hat.get(1)
+    pi2 = pi_hat.get(2)
+    pi3 = pi_hat.get(3)
+    # n = len(historical_inputs)
+
+    denominator = pi1 * prob1 + pi2 * prob2 + pi3 * prob3
+
+    prob_one = (pi1 * prob1) / denominator
+    prob_two = (pi2 * prob2) / denominator
+    prob_three = (pi3 * prob3) / denominator
+
+    # denominator = pi1**n * prob1 + pi2**n * prob2 + pi3**n * prob3
+    #
+    # prob_one = (pi1**n * prob1) / denominator
+    # prob_two = (pi2**n * prob2) / denominator
+    # prob_three = (pi3**n * prob3) / denominator
+
+    # Check for NaN and replace with 1 if necessary
+    prob_one = torch.where(torch.isnan(prob_one), torch.tensor(1.0), prob_one)
+    prob_two = torch.where(torch.isnan(prob_two), torch.tensor(1.0), prob_two)
+    prob_three = torch.where(torch.isnan(prob_three), torch.tensor(1.0), prob_three)
+
+    return prob_one, prob_two, prob_three
+
+
+def h0(l, b, psi, min_V):
+    return torch.where(l >= min_V, torch.exp(b + psi ** 2 * (l - min_V)), torch.tensor(0.0))
+
+
+# def integrand(all_sensor_readings, approx_cov_results, unit_manufac, sensors, l, b, psi, beta, gamma, unit,
+#               unit_failure, min_V, data, hyperparameters, lambda_hyperparameter, unit_f, loaded_hyperparameters_fm,
+#               loaded_lambda_hyp_fm):
+#
+#
+#     h0_value = h0(l, b, psi, min_V)
+#
+#     # means, variances = get_cmgp_predictions(l, unit, 'P13', 1, 1,
+#     #                                         data, hyperparameters,
+#     #                                         lambda_hyperparameter, sigma_hyperparameter, a,
+#     #                                         failure_mode_specific=False, preferred_device=device)
+#     if (unit, unit_failure) in unit_f:
+#         means, _ = get_cmgp_predictions(all_sensor_readings, l, inducing_points_num, unit,
+#                                         sensors,
+#                                         unit_failure,
+#                                         data, hyperparameters,
+#                                         lambda_hyperparameter, approx_cov_results, preferred_device=device)
+#     else:
+#         means, _ = get_cmgp_predictions_fm(all_sensor_readings, l, inducing_points_num, unit,
+#                                            sensors,
+#                                            unit_failure,
+#                                            data, loaded_hyperparameters_fm,
+#                                            loaded_lambda_hyp_fm, approx_cov_results, preferred_device=device)
+#
+#     means = means.squeeze()
+#     if beta.shape == torch.Size([1]):
+#         exp_component_first = beta * means
+#     else:
+#         exp_component_first = beta @ means
+#     # exp_component_third = gamma * unit_manufac.get(unit)
+#     exp_component_third = torch.tensor(0.0, device=device)
+#     exp_component = exp_component_first + exp_component_third
+#
+#     return h0_value * torch.exp(exp_component)
+
+
+def integrand(all_sensor_readings, approx_cov_results, unit_manufac, sensors, l, b, psi, beta, gamma, unit,
+              unit_failure, min_V, data, hyperparameters, lambda_hyperparameter):
+    h0_value = h0(l, b, psi, min_V)
+
+    # means, variances = get_cmgp_predictions(l, unit, 'P13', 1, 1,
+    #                                         data, hyperparameters,
+    #                                         lambda_hyperparameter, sigma_hyperparameter, a,
+    #                                         failure_mode_specific=False, preferred_device=device)
+
+    means, _ = get_cmgp_predictions(all_sensor_readings, l, inducing_points_num, unit,
+                                    sensors,
+                                    unit_failure,
+                                    data, hyperparameters,
+                                    lambda_hyperparameter, approx_cov_results, preferred_device=device)
+
+    means = means.squeeze()
+    if beta.shape == torch.Size([1]):
+        exp_component_first = beta * means
+    else:
+        exp_component_first = beta @ means
+    # exp_component_third = gamma * unit_manufac.get(unit)
+    exp_component_third = torch.tensor(0.0, device=device)
+    exp_component = exp_component_first + exp_component_third
+
+    return h0_value * torch.exp(exp_component)
+
+
+def St_cond_EST(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings, approx_cov_results,
+                unit_manufac, sensors, unit, t_star, t, b_dict, psi_dict, beta_dict, gamma_dict, data, hyperparameters,
+                lambda_hyperparameter):
+    s = {}
+    for failure in failure_modes:
+        p = unit_f_probabilities.get(unit).get(failure)
+        b = b_dict.get(failure)
+        psi = psi_dict.get(failure)
+        # beta = beta_dict.get(unit_failure)
+        beta_values = []
+        for sensor in sensors:
+            beta_value = beta_dict.get((sensor, failure))
+            if beta_value is not None:
+                beta_values.append(beta_value)
+            else:
+                raise ValueError(f"Beta value for sensor {sensor} and failure mode {failure} not found.")
+        beta = torch.tensor(beta_values, device=device)
+        gamma = gamma_dict.get(failure)
+        min_V = min_V_by_failure_mode.get(failure)
+
+        num_points = 1000
+        ls = torch.linspace(t_star, t, num_points).to(device)
+        vals = integrand(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, b, psi, beta, gamma, unit,
+                         failure, min_V, data, hyperparameters,
+                         lambda_hyperparameter)
+        integral_approx = torch.trapz(vals, ls)
+        s[failure] = p * torch.exp(-integral_approx)
+
+    s_sum = sum(s.values())
+    return s_sum
+
+
+########################################################################################################################
+
+
+def h0_2(l, b, rho, min_V):
+    return torch.where(l >= min_V, torch.exp(b + rho * (l - min_V)), torch.tensor(0.0))
+
+
+def h0_3(l, b, rho, min_V):
+    return torch.exp(b + rho * l)
+
+
+def h0_3_2(l, b, rho, min_V):
+    device = l.device
+    b = b.to(device)
+    rho = rho.to(device)
+    return torch.exp(b + rho * l)
+
+
+def integrand_2(all_sensor_readings, approx_cov_results, unit_manufac, sensors, l, mu_b_hat, sigma_b_hat, alpha_rho_hat,
+                beta_rho_hat, beta, gamma, unit,
+                unit_failure, min_V, data, hyperparameters, lambda_hyperparameter):
+    b = torch.normal(mu_b_hat, sigma_b_hat)
+    gamma_dist = torch.distributions.gamma.Gamma(alpha_rho_hat, beta_rho_hat)
+    rho = gamma_dist.sample()
+
+    # b = mu_b_hat
+    # rho = alpha_rho_hat / beta_rho_hat
+
+    h0_value = h0_3(l, b, rho, min_V)
+
+    means, cov_matrix = get_cmgp_predictions(all_sensor_readings, l, inducing_points_num, unit,
+                                             sensors,
+                                             unit_failure,
+                                             data, hyperparameters,
+                                             lambda_hyperparameter, approx_cov_results, preferred_device=device)
+
+    means = means.squeeze()
+    # variances = torch.diagonal(variances)
+    variances = torch.diagonal(cov_matrix, dim1=-2, dim2=-1).squeeze(0)
+
+    samples = torch.normal(means, torch.sqrt(variances))
+
+    if beta.shape == torch.Size([1]):
+        exp_component_first = beta * samples
+
+    else:
+        exp_component_first = beta @ samples
+    # exp_component_third = gamma * unit_manufac.get(unit)
+    exp_component_third = torch.tensor(0.0, device=device)
+    exp_component = exp_component_first + exp_component_third
+
+    return h0_value * torch.exp(exp_component)
+
+
+def St_cond_EST_2(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings, approx_cov_results,
+                  unit_manufac, sensors, unit, t_star, t, mu_b_hat_dict, sigma_b_hat_dict, alpha_rho_hat_dict,
+                  beta_rho_hat_dict, beta_dict, gamma_dict, data,
+                  hyperparameters,
+                  lambda_hyperparameter, num_samples=20):
+    s_distribution = []
+
+    for _ in range(num_samples):
+        s = {}
+        # for failure in failure_modes:
+        for failure in failure_modes:
+            p = unit_f_probabilities.get(unit).get(failure)
+            mu_b_hat = mu_b_hat_dict.get(failure)
+            sigma_b_hat = sigma_b_hat_dict.get(failure)
+            alpha_rho_hat = alpha_rho_hat_dict.get(failure)
+            beta_rho_hat = beta_rho_hat_dict.get(failure)
+
+            # beta = beta_dict.get(unit_failure)
+            beta_values = []
+            for sensor in sensors:
+                beta_value = beta_dict.get((sensor, failure))
+                if beta_value is not None:
+                    beta_values.append(beta_value)
+                else:
+                    raise ValueError(f"Beta value for sensor {sensor} and failure mode {failure} not found.")
+            beta = torch.tensor(beta_values, device=device)
+            gamma = gamma_dict.get(failure)
+            min_V = min_V_by_failure_mode.get(failure)
+
+            num_points = 1000
+            ls = torch.linspace(t_star, t, num_points).to(device)
+            vals = integrand_2(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, mu_b_hat,
+                               sigma_b_hat,
+                               alpha_rho_hat,
+                               beta_rho_hat, beta, gamma,
+                               unit,
+                               failure, min_V, data, hyperparameters,
+                               lambda_hyperparameter)
+            integral_approx = torch.trapz(vals, ls)
+            s[failure] = p * torch.exp(-integral_approx)
+
+        s_sum = sum(s.values())
+        s_distribution.append(s_sum)
+
+    return torch.tensor(s_distribution)
+
+
+def St_cond_EST_3(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings, approx_cov_results,
+                  unit_manufac, sensors, unit, t_star, t, mu_b_hat_dict, sigma_b_hat_dict, alpha_rho_hat_dict,
+                  beta_rho_hat_dict, beta_dict, gamma_dict, data,
+                  hyperparameters,
+                  lambda_hyperparameter, num_samples=20):
+    s_distribution = []
+
+    for _ in range(num_samples):
+        s = {}
+        # for failure in failure_modes:
+        if unit in range(51, 61):
+            failure = 1
+        else:
+            failure = 2
+        p = unit_f_probabilities.get(unit).get(failure)
+        mu_b_hat = mu_b_hat_dict.get(failure)
+        sigma_b_hat = sigma_b_hat_dict.get(failure)
+        alpha_rho_hat = alpha_rho_hat_dict.get(failure)
+        beta_rho_hat = beta_rho_hat_dict.get(failure)
+
+        # beta = beta_dict.get(unit_failure)
+        beta_values = []
+        for sensor in sensors:
+            beta_value = beta_dict.get((sensor, failure))
+            if beta_value is not None:
+                beta_values.append(beta_value)
+            else:
+                raise ValueError(f"Beta value for sensor {sensor} and failure mode {failure} not found.")
+        beta = torch.tensor(beta_values, device=device)
+        gamma = gamma_dict.get(failure)
+        min_V = min_V_by_failure_mode.get(failure)
+
+        num_points = 1000
+        ls = torch.linspace(t_star, t, num_points).to(device)
+        vals = integrand_2(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, mu_b_hat,
+                           sigma_b_hat,
+                           alpha_rho_hat,
+                           beta_rho_hat, beta, gamma,
+                           unit,
+                           failure, min_V, data, hyperparameters,
+                           lambda_hyperparameter)
+        integral_approx = torch.trapz(vals, ls)
+        s[failure] = p * torch.exp(-integral_approx)
+
+        s_sum = sum(s.values())
+        s_distribution.append(s_sum)
+
+    return torch.tensor(s_distribution)
+
+
+import torch
+
+
+def St_cond_EST_4(
+        min_V_by_failure_mode,
+        unit_f_probabilities,
+        failure_modes,
+        all_sensor_readings,
+        approx_cov_results,
+        unit_manufac,
+        sensors,
+        unit,
+        t_star,
+        t,
+        mu_b_hat_dict,
+        sigma_b_hat_dict,
+        alpha_rho_hat_dict,
+        beta_rho_hat_dict,
+        beta_dict,
+        gamma_dict,
+        data,
+        hyperparameters,
+        lambda_hyperparameter,
+        num_samples=20
+):
+    s_distribution = []
+    p_for_failures = [float(unit_f_probabilities[unit][f]) for f in failure_modes]
+    n_for_failures = [int(round(p * num_samples)) for p in p_for_failures]
+    difference = num_samples - sum(n_for_failures)
+    if difference != 0:
+        max_index = max(range(len(p_for_failures)), key=lambda i: p_for_failures[i])
+        n_for_failures[max_index] += difference
+
+    for failure, n_samples_for_failure in zip(failure_modes, n_for_failures):
+        for _ in range(n_samples_for_failure):
+            mu_b_hat = mu_b_hat_dict.get(failure)
+            sigma_b_hat = sigma_b_hat_dict.get(failure)
+            alpha_rho_hat = alpha_rho_hat_dict.get(failure)
+            beta_rho_hat = beta_rho_hat_dict.get(failure)
+            beta_values = []
+            for sensor in sensors:
+                beta_value = beta_dict.get((sensor, failure))
+                if beta_value is None:
+                    raise ValueError(f"Missing beta for sensor {sensor} and failure mode {failure}")
+                beta_values.append(beta_value)
+            beta = torch.tensor(beta_values, device=device)
+            gamma = gamma_dict.get(failure)
+            min_V = min_V_by_failure_mode.get(failure)
+            ls = torch.linspace(t_star, t, 1000).to(device)
+            vals = integrand_2(
+                all_sensor_readings,
+                approx_cov_results,
+                unit_manufac,
+                sensors,
+                ls,
+                mu_b_hat,
+                sigma_b_hat,
+                alpha_rho_hat,
+                beta_rho_hat,
+                beta,
+                gamma,
+                unit,
+                failure,
+                min_V,
+                data,
+                hyperparameters,
+                lambda_hyperparameter
+            )
+            integral_approx = torch.trapz(vals, ls)
+            s_value = torch.exp(-integral_approx)
+            s_distribution.append(s_value)
+
+    return torch.tensor(s_distribution)
+
+
+########################################################################################################################
+# def St_cond_EST(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings, approx_cov_results,
+#                 unit_manufac, sensors, unit, t_star, t, b_dict, psi_dict, beta_dict, gamma_dict, data, hyperparameters,
+#                 lambda_hyperparameter, unit_f, loaded_hyperparameters_fm,
+#                 loaded_lambda_hyp_fm):
+#     s = {}
+#     for failure in failure_modes:
+#         p = unit_f_probabilities.get(unit).get(failure)
+#         b = b_dict.get(failure)
+#         psi = psi_dict.get(failure)
+#         # beta = beta_dict.get(unit_failure)
+#         beta_values = []
+#         for sensor in sensors:
+#             beta_value = beta_dict.get((sensor, failure))
+#             if beta_value is not None:
+#                 beta_values.append(beta_value)
+#             else:
+#                 raise ValueError(f"Beta value for sensor {sensor} and failure mode {failure} not found.")
+#         beta = torch.tensor(beta_values, device=device)
+#         gamma = gamma_dict.get(failure)
+#         min_V = min_V_by_failure_mode.get(failure)
+#
+#         num_points = 1000
+#         ls = torch.linspace(t_star, t, num_points).to(device)
+#
+#         vals = integrand(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, b, psi, beta, gamma, unit,
+#                          failure, min_V, data, hyperparameters, lambda_hyperparameter, unit_f,
+#                          loaded_hyperparameters_fm,
+#                          loaded_lambda_hyp_fm)
+#         integral_approx = torch.trapz(vals, ls)
+#         s[failure] = p * torch.exp(-integral_approx)
+#
+#     s_sum = sum(s.values())
+#     return s_sum
+
+
+def St_cond_EST_actual(unit_failure_mode, min_V_by_failure_mode, failure_modes, all_sensor_readings, approx_cov_results,
+                       unit_manufac, sensors, unit, t_star, t, b_dict, psi_dict, beta_dict, gamma_dict, data,
+                       hyperparameters,
+                       lambda_hyperparameter):
+    failure = unit_failure_mode.get(unit)
+    b = b_dict.get(failure)
+    psi = psi_dict.get(failure)
+    # beta = beta_dict.get(unit_failure)
+    beta_values = []
+    for sensor in sensors:
+        beta_value = beta_dict.get((sensor, failure))
+        if beta_value is not None:
+            beta_values.append(beta_value)
+        else:
+            raise ValueError(f"Beta value for sensor {sensor} and failure mode {failure} not found.")
+    beta = torch.tensor(beta_values, device=device)
+    gamma = gamma_dict.get(failure)
+    min_V = min_V_by_failure_mode.get(failure)
+
+    num_points = 1000
+    ls = torch.linspace(t_star, t, num_points).to(device)
+    vals = integrand(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, b, psi, beta, gamma, unit,
+                     failure, min_V, data, hyperparameters,
+                     lambda_hyperparameter)
+    integral_approx = torch.trapz(vals, ls)
+    return torch.exp(-integral_approx)
+
+
+# def integrate_St_cond_EST(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings,
+#                           approx_cov_results, unit_manufacturer, sensors, unit, t_star, t_end, b_dict, psi_dict,
+#                           beta_dict,
+#                           gamma_dict, data, hyperparameters, lambda_hyperparameter, unit_f, loaded_hyperparameters_fm,
+#                           loaded_lambda_hyp_fm, num_points=100):
+#     ts = torch.linspace(t_star, t_end, num_points).to(device)
+#     integrand_vals = torch.zeros(num_points).to(device)
+#     for i, t in enumerate(ts):
+#         integrand_vals[i] = St_cond_EST(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings,
+#                                         approx_cov_results,
+#                                         unit_manufacturer, sensors, unit, t_star, t, b_dict, psi_dict, beta_dict,
+#                                         gamma_dict,
+#                                         data,
+#                                         hyperparameters,
+#                                         lambda_hyperparameter, unit_f, loaded_hyperparameters_fm, loaded_lambda_hyp_fm)
+#     integral_value = torch.trapz(integrand_vals, ts)
+#     return integral_value
+
+
+def integrate_St_cond_EST(min_V_by_failure_mode, unit_failure_mode, failure_modes, all_sensor_readings,
+                          approx_cov_results, unit_manufacturer, sensors, unit, t_star, t_end, b_dict, psi_dict,
+                          beta_dict,
+                          gamma_dict, data, hyperparameters, lambda_hyperparameter, num_points=100):
+    ts = torch.linspace(t_star, t_end, num_points).to(device)
+    integrand_vals = torch.zeros(num_points).to(device)
+    for i, t in enumerate(ts):
+        integrand_vals[i] = St_cond_EST_8(min_V_by_failure_mode, unit_failure_mode, failure_modes,
+                                          all_sensor_readings,
+                                          approx_cov_results,
+                                          unit_manufacturer, sensors, unit, t_star, t, b_dict, psi_dict, beta_dict,
+                                          gamma_dict,
+                                          data,
+                                          hyperparameters,
+                                          lambda_hyperparameter)
+
+    integral_value = torch.trapz(integrand_vals, ts)
+    return integral_value
+
+
+def integrate_St_cond_EST_actual(unit_failure_mode, min_V_by_failure_mode, failure_modes, all_sensor_readings,
+                                 approx_cov_results, unit_manufacturer, sensors, unit, t_star, t_end, b_dict, psi_dict,
+                                 beta_dict,
+                                 gamma_dict, data, hyperparameters, lambda_hyperparameter, num_points=100):
+    ts = torch.linspace(t_star, t_end, num_points).to(device)
+    integrand_vals = torch.zeros(num_points).to(device)
+    for i, t in enumerate(ts):
+        integrand_vals[i] = St_cond_EST_actual(unit_failure_mode, min_V_by_failure_mode, failure_modes,
+                                               all_sensor_readings,
+                                               approx_cov_results,
+                                               unit_manufacturer, sensors, unit, t_star, t, b_dict, psi_dict, beta_dict,
+                                               gamma_dict,
+                                               data,
+                                               hyperparameters,
+                                               lambda_hyperparameter)
+    integral_value = torch.trapz(integrand_vals, ts)
+    return integral_value
+
+
+########################################################################################################################
+
+
+def probability_of_failure_hist_unit(slice_value, data_dicts, all_sensor_readings, loaded_hyperparameters,
+                                     loaded_lambda_hyp, loaded_hyperparameters_fm, loaded_lambda_hyp_fm,
+                                     approx_cov_results, unit, actual_failure, pi_hat, sensor, unit_f):
+    data_dict = data_dicts.get((sensor, actual_failure))
+    historical_inputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['time_points'][:slice_value],
+                                     device=device)
+
+    historical_outputs = torch.tensor(
+        data_dict[(unit, sensor, actual_failure)]['sensor_readings'][:slice_value],
+        dtype=torch.float32,
+        device=device
+    ).unsqueeze(-1)
+
+    if (unit, 1) in unit_f:
+        means_1, variance_1 = get_cmgp_predictions(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 1, data_dicts, loaded_hyperparameters,
+            loaded_lambda_hyp, approx_cov_results, preferred_device=device
+        )
+    else:
+        means_1, variance_1 = get_cmgp_predictions_fm(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 1, data_dicts, loaded_hyperparameters_fm,
+            loaded_lambda_hyp_fm, approx_cov_results, preferred_device=device
+        )
+
+    if (unit, 2) in unit_f:
+        means_2, variance_2 = get_cmgp_predictions(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 2, data_dicts, loaded_hyperparameters,
+            loaded_lambda_hyp, approx_cov_results, preferred_device=device
+        )
+
+    else:
+        means_2, variance_2 = get_cmgp_predictions_fm(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 2, data_dicts, loaded_hyperparameters_fm,
+            loaded_lambda_hyp_fm, approx_cov_results, preferred_device=device
+        )
+
+    if (unit, 3) in unit_f:
+        means_3, variance_3 = get_cmgp_predictions(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 3, data_dicts, loaded_hyperparameters,
+            loaded_lambda_hyp, approx_cov_results, preferred_device=device
+        )
+
+    else:
+        means_3, variance_3 = get_cmgp_predictions_fm(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 3, data_dicts, loaded_hyperparameters_fm,
+            loaded_lambda_hyp_fm, approx_cov_results, preferred_device=device
+        )
+    prob1, log_like1 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_1.squeeze().unsqueeze(-1),
+                                  variance_1.squeeze())
+    prob2, log_like2 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_2.squeeze().unsqueeze(-1),
+                                  variance_2.squeeze())
+    prob3, log_like3 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_3.squeeze().unsqueeze(-1),
+                                  variance_3.squeeze())
+
+    max_log_likelihood = max(log_like1, log_like2, log_like3).item()
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    if max_log_likelihood > 88:
+        subtract_value = max_log_likelihood - 88
+
+        # Subtract the necessary value from all log-likelihoods
+        log_like1 -= subtract_value
+        log_like2 -= subtract_value
+        log_like3 -= subtract_value
+
+        # Recalculate the probabilities after adjustment
+        prob1 = torch.exp(log_like1)
+        prob2 = torch.exp(log_like2)
+        prob3 = torch.exp(log_like3)
+
+    # print(f'unit:{unit} ==> Re_log_likelihood_1: {log_like1.item()}, Re_log_likelihood_2: {log_like2.item()}, '
+    #       f'Re_log_likelihood_3: {log_like3.item()}')
+    # print(
+    #     f'unit:{unit} ==> Re_likelihood_1: {prob1.item()}, Re_likelihood_2: {prob2.item()}, Re_likelihood_3: {prob3.item()}')
+
+    pi1 = pi_hat.get(1)
+    pi2 = pi_hat.get(2)
+    pi3 = pi_hat.get(3)
+    n = len(historical_inputs)
+
+    denominator = pi1 * prob1 + pi2 * prob2 + pi3 * prob3
+
+    prob_one = (pi1 * prob1) / denominator
+    prob_two = (pi2 * prob2) / denominator
+    prob_three = (pi3 * prob3) / denominator
+
+    # Check for NaN and replace with 1 if necessary
+    prob_one = torch.where(torch.isnan(prob_one), torch.tensor(1.0), prob_one)
+    prob_two = torch.where(torch.isnan(prob_two), torch.tensor(1.0), prob_two)
+    prob_three = torch.where(torch.isnan(prob_three), torch.tensor(1.0), prob_three)
+
+    return prob_one, prob_two, prob_three
+
+
+def probability_of_failure_unit(data_dicts, all_sensor_readings, loaded_hyperparameters,
+                                loaded_lambda_hyp, loaded_hyperparameters_fm, loaded_lambda_hyp_fm,
+                                approx_cov_results, unit, actual_failure, pi_hat, sensor, unit_f):
+    data_dict = data_dicts.get((sensor, actual_failure))
+    historical_inputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['time_points'],
+                                     device=device)
+
+    historical_outputs = torch.tensor(
+        data_dict[(unit, sensor, actual_failure)]['sensor_readings'],
+        dtype=torch.float32,
+        device=device
+    ).unsqueeze(-1)
+
+    if (unit, 1) in unit_f:
+        means_1, variance_1 = get_cmgp_predictions(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 1, data_dicts, loaded_hyperparameters,
+            loaded_lambda_hyp, approx_cov_results, preferred_device=device
+        )
+    else:
+        means_1, variance_1 = get_cmgp_predictions_fm(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 1, data_dicts, loaded_hyperparameters_fm,
+            loaded_lambda_hyp_fm, approx_cov_results, preferred_device=device
+        )
+
+    if (unit, 2) in unit_f:
+        means_2, variance_2 = get_cmgp_predictions(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 2, data_dicts, loaded_hyperparameters,
+            loaded_lambda_hyp, approx_cov_results, preferred_device=device
+        )
+
+    else:
+        means_2, variance_2 = get_cmgp_predictions_fm(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 2, data_dicts, loaded_hyperparameters_fm,
+            loaded_lambda_hyp_fm, approx_cov_results, preferred_device=device
+        )
+
+    if (unit, 3) in unit_f:
+        means_3, variance_3 = get_cmgp_predictions(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 3, data_dicts, loaded_hyperparameters,
+            loaded_lambda_hyp, approx_cov_results, preferred_device=device
+        )
+
+    else:
+        means_3, variance_3 = get_cmgp_predictions_fm(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 3, data_dicts, loaded_hyperparameters_fm,
+            loaded_lambda_hyp_fm, approx_cov_results, preferred_device=device
+        )
+    prob1, log_like1 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_1.squeeze().unsqueeze(-1),
+                                  variance_1.squeeze())
+    prob2, log_like2 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_2.squeeze().unsqueeze(-1),
+                                  variance_2.squeeze())
+    prob3, log_like3 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_3.squeeze().unsqueeze(-1),
+                                  variance_3.squeeze())
+
+    max_log_likelihood = max(log_like1, log_like2, log_like3).item()
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    if max_log_likelihood > 88:
+        subtract_value = max_log_likelihood - 88
+
+        # Subtract the necessary value from all log-likelihoods
+        log_like1 -= subtract_value
+        log_like2 -= subtract_value
+        log_like3 -= subtract_value
+
+        # Recalculate the probabilities after adjustment
+        prob1 = torch.exp(log_like1)
+        prob2 = torch.exp(log_like2)
+        prob3 = torch.exp(log_like3)
+
+    # print(f'unit:{unit} ==> Re_log_likelihood_1: {log_like1.item()}, Re_log_likelihood_2: {log_like2.item()}, '
+    #       f'Re_log_likelihood_3: {log_like3.item()}')
+    # print(
+    #     f'unit:{unit} ==> Re_likelihood_1: {prob1.item()}, Re_likelihood_2: {prob2.item()}, Re_likelihood_3: {prob3.item()}')
+
+    pi1 = pi_hat.get(1)
+    pi2 = pi_hat.get(2)
+    pi3 = pi_hat.get(3)
+    n = len(historical_inputs)
+
+    denominator = pi1 * prob1 + pi2 * prob2 + pi3 * prob3
+
+    prob_one = (pi1 * prob1) / denominator
+    prob_two = (pi2 * prob2) / denominator
+    prob_three = (pi3 * prob3) / denominator
+
+    # Check for NaN and replace with 1 if necessary
+    prob_one = torch.where(torch.isnan(prob_one), torch.tensor(1.0), prob_one)
+    prob_two = torch.where(torch.isnan(prob_two), torch.tensor(1.0), prob_two)
+    prob_three = torch.where(torch.isnan(prob_three), torch.tensor(1.0), prob_three)
+
+    return prob_one, prob_two, prob_three
+
+
+def likelihood_of_failure(slice_value, data_dicts, all_sensor_readings, loaded_hyperparameters,
+                          loaded_lambda_hyp, loaded_hyperparameters_fm, loaded_lambda_hyp_fm,
+                          approx_cov_results, unit, actual_failure, pi_hat, sensor, unit_f):
+    data_dict = data_dicts.get((sensor, actual_failure))
+    historical_inputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['time_points'][:slice_value],
+                                     device=device)
+
+    historical_outputs = torch.tensor(
+        data_dict[(unit, sensor, actual_failure)]['sensor_readings'][:slice_value],
+        dtype=torch.float32,
+        device=device
+    ).unsqueeze(-1)
+
+    if (unit, 1) in unit_f:
+        means_1, variance_1 = get_cmgp_predictions(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 1, data_dicts, loaded_hyperparameters,
+            loaded_lambda_hyp, approx_cov_results, preferred_device=device
+        )
+    else:
+        means_1, variance_1 = get_cmgp_predictions_fm(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 1, data_dicts, loaded_hyperparameters_fm,
+            loaded_lambda_hyp_fm, approx_cov_results, preferred_device=device
+        )
+
+    if (unit, 2) in unit_f:
+        means_2, variance_2 = get_cmgp_predictions(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 2, data_dicts, loaded_hyperparameters,
+            loaded_lambda_hyp, approx_cov_results, preferred_device=device
+        )
+
+    else:
+        means_2, variance_2 = get_cmgp_predictions_fm(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 2, data_dicts, loaded_hyperparameters_fm,
+            loaded_lambda_hyp_fm, approx_cov_results, preferred_device=device
+        )
+
+    if (unit, 3) in unit_f:
+        means_3, variance_3 = get_cmgp_predictions(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 3, data_dicts, loaded_hyperparameters,
+            loaded_lambda_hyp, approx_cov_results, preferred_device=device
+        )
+
+    else:
+        means_3, variance_3 = get_cmgp_predictions_fm(
+            all_sensor_readings, historical_inputs, inducing_points_num, unit,
+            [sensor], 3, data_dicts, loaded_hyperparameters_fm,
+            loaded_lambda_hyp_fm, approx_cov_results, preferred_device=device
+        )
+    prob1, log_like1 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_1.squeeze().unsqueeze(-1),
+                                  variance_1.squeeze())
+    prob2, log_like2 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_2.squeeze().unsqueeze(-1),
+                                  variance_2.squeeze())
+    prob3, log_like3 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_3.squeeze().unsqueeze(-1),
+                                  variance_3.squeeze())
+
+    max_log_likelihood = max(log_like1, log_like2, log_like3).item()
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    if max_log_likelihood > 88:
+        subtract_value = max_log_likelihood - 88
+
+        # Subtract the necessary value from all log-likelihoods
+        log_like1 -= subtract_value
+        log_like2 -= subtract_value
+        log_like3 -= subtract_value
+
+        # Recalculate the probabilities after adjustment
+        prob1 = torch.exp(log_like1)
+        prob2 = torch.exp(log_like2)
+        prob3 = torch.exp(log_like3)
+
+    return prob1, prob2, prob3
+
+
+def likelihood_of_failure_test(data_dicts, all_sensor_readings, loaded_hyperparameters,
+                               loaded_lambda_hyp,
+                               approx_cov_results, unit, sensor):
+    data_dict = data_dicts.get((sensor, 1))
+    historical_inputs = torch.tensor(data_dict[(unit, sensor, 1)]['time_points'],
+                                     device=device)
+
+    historical_outputs = torch.tensor(
+        data_dict[(unit, sensor, 1)]['sensor_readings'],
+        dtype=torch.float32,
+        device=device
+    ).unsqueeze(-1)
+
+    means_1, variance_1 = get_cmgp_predictions(
+        all_sensor_readings, historical_inputs, inducing_points_num, unit,
+        [sensor], 1, data_dicts, loaded_hyperparameters,
+        loaded_lambda_hyp, approx_cov_results, preferred_device=device
+    )
+
+    means_2, variance_2 = get_cmgp_predictions(
+        all_sensor_readings, historical_inputs, inducing_points_num, unit,
+        [sensor], 2, data_dicts, loaded_hyperparameters,
+        loaded_lambda_hyp, approx_cov_results, preferred_device=device
+    )
+
+    means_3, variance_3 = get_cmgp_predictions(
+        all_sensor_readings, historical_inputs, inducing_points_num, unit,
+        [sensor], 3, data_dicts, loaded_hyperparameters,
+        loaded_lambda_hyp, approx_cov_results, preferred_device=device
+    )
+
+    prob1, log_like1 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_1.squeeze().unsqueeze(-1),
+                                  variance_1.squeeze())
+    prob2, log_like2 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_2.squeeze().unsqueeze(-1),
+                                  variance_2.squeeze())
+    prob3, log_like3 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_3.squeeze().unsqueeze(-1),
+                                  variance_3.squeeze())
+
+    max_log_likelihood = max(log_like1, log_like2, log_like3).item()
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    if max_log_likelihood > 88:
+        subtract_value = max_log_likelihood - 88
+
+        # Subtract the necessary value from all log-likelihoods
+        log_like1 -= subtract_value
+        log_like2 -= subtract_value
+        log_like3 -= subtract_value
+
+        # Recalculate the probabilities after adjustment
+        prob1 = torch.exp(log_like1)
+        prob2 = torch.exp(log_like2)
+        prob3 = torch.exp(log_like3)
+
+    return prob1, prob2, prob3
+
+
+#######################################################################################################################
+
+def integrand_test(all_sensor_readings, approx_cov_results, unit_manufac, sensors, l, b, psi, beta, gamma, unit,
+                   unit_failure, min_V, data, hyperparameters, lambda_hyperparameter):
+    h0_value = h0_3(l, b, psi, min_V)
+
+    means, _ = get_cmgp_predictions(all_sensor_readings, l, inducing_points_num, unit,
+                                    sensors,
+                                    unit_failure,
+                                    data, hyperparameters,
+                                    lambda_hyperparameter, approx_cov_results, preferred_device=device)
+
+    means = means.squeeze()
+    if beta.shape == torch.Size([1]):
+        exp_component_first = beta * means
+    else:
+        exp_component_first = beta @ means
+    # exp_component_third = gamma * unit_manufac.get(unit)
+    exp_component_third = torch.tensor(0.0, device=device)
+    exp_component = exp_component_first + exp_component_third
+
+    return h0_value * torch.exp(exp_component)
+
+
+def St_cond_EST_test(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings,
+                     approx_cov_results, unit_manufacturer, sensors, unit, t_star, t, b_dict, psi_dict, beta_dict,
+                     gamma_dict, data, hyperparameters, lambda_hyperparameter):
+    s = {}
+    for failure in failure_modes:
+        p = unit_f_probabilities.get(unit).get(failure)
+        b = b_dict.get(failure)
+        psi = psi_dict.get(failure)
+        # beta = beta_dict.get(unit_failure)
+        beta_values = []
+        for sensor in sensors:
+            beta_value = beta_dict.get((sensor, failure))
+            if beta_value is not None:
+                beta_values.append(beta_value)
+            else:
+                raise ValueError(f"Beta value for sensor {sensor} and failure mode {failure} not found.")
+        beta = torch.tensor(beta_values, device=device)
+        gamma = gamma_dict.get(failure)
+        min_V = min_V_by_failure_mode.get(failure)
+
+        num_points = 1000
+        ls = torch.linspace(t_star, t, num_points).to(device)
+        vals = integrand_test(all_sensor_readings, approx_cov_results, unit_manufacturer, sensors, ls, b, psi, beta,
+                              gamma, unit, failure, min_V, data, hyperparameters, lambda_hyperparameter)
+        integral_approx = torch.trapz(vals, ls)
+        s[failure] = p * torch.exp(-integral_approx)
+
+    s_sum = sum(s.values())
+    return s_sum
+
+
+def integrate_St_cond_EST_test(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings,
+                               approx_cov_results, unit_manufacturer, sensors, unit, t_star, t_end, b_dict, psi_dict,
+                               beta_dict,
+                               gamma_dict, data, hyperparameters, lambda_hyperparameter, num_points=100):
+    ts = torch.linspace(t_star, t_end, num_points).to(device)
+    integrand_vals = torch.zeros(num_points).to(device)
+    for i, t in enumerate(ts):
+        integrand_vals[i] = St_cond_EST_test(min_V_by_failure_mode, unit_f_probabilities, failure_modes,
+                                             all_sensor_readings,
+                                             approx_cov_results,
+                                             unit_manufacturer, sensors, unit, t_star, t, b_dict, psi_dict, beta_dict,
+                                             gamma_dict,
+                                             data,
+                                             hyperparameters,
+                                             lambda_hyperparameter)
+    integral_value = torch.trapz(integrand_vals, ts)
+    return integral_value
+
+
+def likelihood_of_failure_all_test_ns(data_dict_test, data_dicts, all_sensor_readings, loaded_hyperparameters,
+                                      loaded_lambda_hyp,
+                                      approx_cov_results, unit, actual_failure, pi_hat, sensor):
+    data_dict = data_dict_test.get((sensor, actual_failure))
+    historical_inputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['time_points'],
+                                     device=device)
+
+    historical_outputs = torch.tensor(data_dict[(unit, sensor, actual_failure)]['sensor_readings'],
+                                      dtype=torch.float32,
+                                      device=device).unsqueeze(-1)
+
+    means_1, variance_1 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               1,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    means_2, variance_2 = get_cmgp_predictions(all_sensor_readings, historical_inputs, inducing_points_num, unit,
+                                               [sensor],
+                                               2,
+                                               data_dicts, loaded_hyperparameters,
+                                               loaded_lambda_hyp, approx_cov_results, preferred_device=device)
+
+    prob1, log_like1 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_1.squeeze().unsqueeze(-1),
+                                  variance_1.squeeze())
+    prob2, log_like2 = likelihood(historical_outputs.squeeze().unsqueeze(-1), means_2.squeeze().unsqueeze(-1),
+                                  variance_2.squeeze())
+
+    # print(f'unit:{unit} ==> log_likelihood_1: {log_like1.item()}, log_likelihood_2: {log_like2.item()}, '
+    #       f'log_likelihood_3: {log_like3.item()}')
+    # print(f'unit:{unit} ==> likelihood_1: {prob1.item()}, likelihood_2: {prob2.item()}, likelihood_3: {prob3.item()}')
+
+    # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    # max_log_likelihood = max(log_like1, log_like2).item()
+    #
+    # # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    # if max_log_likelihood > 88:
+    #     subtract_value = max_log_likelihood - 88
+    #
+    #     # Subtract the necessary value from all log-likelihoods
+    #     log_like1 -= subtract_value
+    #     log_like2 -= subtract_value
+    #
+    #     # Recalculate the probabilities after adjustment
+    #     prob1 = torch.exp(log_like1)
+    #     prob2 = torch.exp(log_like2)
+
+    max_log_likelihood = max(log_like1, log_like2).item()
+    min_log_likelihood = min(log_like1, log_like2).item()
+    #
+    # # Check if the maximum log-likelihood is greater than 88 and adjust if necessary
+    # if max_log_likelihood > 88:
+    #     subtract_value = max_log_likelihood - 88
+    #
+    #     # Subtract the necessary value from all log-likelihoods
+    #     log_like1 -= subtract_value
+    #     log_like2 -= subtract_value
+    #
+    # # Check if the minimum log-likelihood is less than -88 and adjust if necessary
+    # if min_log_likelihood < -88:
+    #     add_value = -88 - min_log_likelihood
+    #
+    #     # Add the necessary value to all log-likelihoods
+    #     log_like1 += add_value
+    #     log_like2 += add_value
+
+    #########
+    if max_log_likelihood > 88 or min_log_likelihood < -88:
+        # Calculate the midpoint of the current log-likelihood range
+        mid_log_likelihood = (max_log_likelihood + min_log_likelihood) / 2
+
+        # Calculate the adjustment to bring the midpoint to 0, centered within [-88, 88]
+        shift_value = mid_log_likelihood
+
+        # Subtract the shift value from all log-likelihoods to center them
+        log_like1 -= shift_value
+        log_like2 -= shift_value
+
+        # After centering, ensure they are within the [-88, 88] range
+        # If still out of range, scale them uniformly to fit in [-88, 88]
+        max_log_likelihood = max(log_like1, log_like2)
+        min_log_likelihood = min(log_like1, log_like2)
+
+        # Check if scaling is needed
+        if max_log_likelihood > 88 or min_log_likelihood < -88:
+            # Calculate scaling factor to bring them within the range
+            scaling_factor = 88 / max(abs(max_log_likelihood), abs(min_log_likelihood))
+
+            # Scale log-likelihoods uniformly
+            log_like1 *= scaling_factor
+            log_like2 *= scaling_factor
+
+    #####################
+    # Recalculate the probabilities after adjustment
+    prob1 = torch.exp(log_like1)
+    prob2 = torch.exp(log_like2)
+
+    c = 1 / 1
+    return c * prob1, c * prob2
+
+
+def integrand_batch(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, mu_b_hat, sigma_b_hat,
+                    alpha_rho_hat, beta_rho_hat, beta, gamma, unit, unit_failure, min_V, data, hyperparameters,
+                    lambda_hyperparameter, num_samples):
+    b = torch.normal(mu_b_hat, sigma_b_hat, size=(num_samples,)).to(device)
+    gamma_dist = torch.distributions.gamma.Gamma(alpha_rho_hat, beta_rho_hat)
+    rho = gamma_dist.sample((num_samples,)).to(device)
+    h0_values = h0_3(ls, b[:, None], rho[:, None], min_V)
+    means, cov_matrix = get_cmgp_predictions(all_sensor_readings, ls, inducing_points_num, unit,
+                                             sensors, unit_failure, data, hyperparameters,
+                                             lambda_hyperparameter, approx_cov_results, preferred_device=device)
+    means = means.squeeze()
+    variances = torch.diagonal(cov_matrix, dim1=-2, dim2=-1).squeeze(0)
+    samples = torch.normal(means, torch.sqrt(variances))
+    if beta.shape == torch.Size([1]):
+        exp_component_first = beta * samples
+    else:
+        exp_component_first = beta @ samples
+    exp_component_third = torch.tensor(0.0, device=device)
+    exp_component = exp_component_first + exp_component_third
+    return h0_values * torch.exp(exp_component)
+
+
+def St_cond_EST_batch(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings,
+                      approx_cov_results, unit_manufac, sensors, unit, t_star, t, mu_b_hat_dict, sigma_b_hat_dict,
+                      alpha_rho_hat_dict, beta_rho_hat_dict, beta_dict, gamma_dict, data, hyperparameters,
+                      lambda_hyperparameter, num_samples=20):
+    failure = 1 if unit in range(51, 61) else 2
+    p = unit_f_probabilities.get(unit).get(failure)
+    mu_b_hat = mu_b_hat_dict.get(failure)
+    sigma_b_hat = sigma_b_hat_dict.get(failure)
+    alpha_rho_hat = alpha_rho_hat_dict.get(failure)
+    beta_rho_hat = beta_rho_hat_dict.get(failure)
+    beta_values = [beta_dict.get((sensor, failure)) for sensor in sensors]
+    beta = torch.tensor(beta_values, device=device)
+    gamma = gamma_dict.get(failure)
+    min_V = min_V_by_failure_mode.get(failure)
+    num_points = 1000
+    ls = torch.linspace(t_star, t, num_points).to(device)
+    vals_batch = integrand_batch(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls,
+                                 mu_b_hat, sigma_b_hat, alpha_rho_hat, beta_rho_hat, beta, gamma, unit,
+                                 failure, min_V, data, hyperparameters, lambda_hyperparameter, num_samples)
+    integral_approx = torch.trapz(vals_batch, ls, dim=1)
+    s = p * torch.exp(-integral_approx)
+    return s
+
+
+# def h0(l, mu_b_hat, sigma_b_hat, alpha_rho_hat, beta_rho_hat, min_V):
+#     return torch.where(l >= min_V,
+#                        torch.exp((mu_b_hat + ((sigma_b_hat ** 2) / 2))) * (1-((l - min_V)/beta_rho_hat))**(-alpha_rho_hat),
+#                        torch.tensor(0.0))
+
+# def h0_3(l, b, rho, min_V):
+#     return torch.exp(b + rho * l)
+# def h0_4(l, b, rho, min_V):
+#     return torch.where(l >= min_V, torch.exp(b + rho * (l-min_V)), torch.tensor(0.0))
+
+def integrand_prob_batch(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, mu_b_hat, sigma_b_hat,
+                         alpha_rho_hat, beta_rho_hat, beta, gamma, unit, unit_failure, min_V, data, hyperparameters,
+                         lambda_hyperparameter, num_samples):
+    b = torch.normal(mu_b_hat, sigma_b_hat, size=(num_samples,)).to(device)
+    gamma_dist = torch.distributions.gamma.Gamma(alpha_rho_hat, beta_rho_hat)
+    rho = gamma_dist.sample((num_samples,)).to(device)
+    h0_values = h0_3(ls, b[:, None], rho[:, None], min_V)
+    means, cov_matrix = get_cmgp_predictions(all_sensor_readings, ls, inducing_points_num, unit,
+                                             sensors, unit_failure, data, hyperparameters,
+                                             lambda_hyperparameter, approx_cov_results, preferred_device=device)
+    means = means.squeeze()
+    variances = torch.diagonal(cov_matrix, dim1=-2, dim2=-1).squeeze(0)
+    samples = torch.normal(means, torch.sqrt(variances))
+    # samples = torch.normal(means, torch.sqrt(torch.abs(variances)))
+    if beta.shape == torch.Size([1]):
+        exp_component_first = beta * samples
+    else:
+        exp_component_first = beta @ samples
+    exp_component_third = torch.tensor(0.0, device=device)
+    exp_component = exp_component_first + exp_component_third
+    return h0_values * torch.exp(exp_component)
+
+
+def St_cond_EST_prob_batch(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings,
+                           approx_cov_results, unit_manufac, sensors, unit, t_star, t, mu_b_hat_dict, sigma_b_hat_dict,
+                           alpha_rho_hat_dict, beta_rho_hat_dict, beta_dict, gamma_dict, data, hyperparameters,
+                           lambda_hyperparameter, num_samples=20):
+    s_distribution = []
+    p_for_failures = [float(unit_f_probabilities[unit][f]) for f in failure_modes]
+    n_for_failures = [int(round(p * num_samples)) for p in p_for_failures]
+    difference = num_samples - sum(n_for_failures)
+    if difference != 0:
+        max_index = max(range(len(p_for_failures)), key=lambda i: p_for_failures[i])
+        n_for_failures[max_index] += difference
+    num_points = 1000
+    ls = torch.linspace(t_star, t, num_points).to(device)
+    for failure, n_samples_for_failure in zip(failure_modes, n_for_failures):
+        if n_samples_for_failure == 0:
+            continue
+        mu_b_hat = mu_b_hat_dict.get(failure)
+        sigma_b_hat = sigma_b_hat_dict.get(failure)
+        alpha_rho_hat = alpha_rho_hat_dict.get(failure)
+        beta_rho_hat = beta_rho_hat_dict.get(failure)
+        beta_values = [beta_dict.get((sensor, failure)) for sensor in sensors]
+        beta = torch.tensor(beta_values, device=device)
+        gamma = gamma_dict.get(failure)
+        min_V = min_V_by_failure_mode.get(failure)
+        vals_batch = integrand_prob_batch(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls,
+                                          mu_b_hat, sigma_b_hat, alpha_rho_hat, beta_rho_hat, beta, gamma, unit,
+                                          failure, min_V, data, hyperparameters, lambda_hyperparameter,
+                                          n_samples_for_failure)
+        integral_approx = torch.trapz(vals_batch, ls, dim=1)
+        s_values = torch.exp(-integral_approx)
+        s_distribution.extend(s_values.tolist())
+    return torch.tensor(s_distribution)
+
+
+def integrand_batch_1(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, b, psi, beta, gamma, unit,
+                      unit_failure, min_V, data, hyperparameters, lambda_hyperparameter):
+    h0_values = h0_3_2(ls, b[:, None], psi[:, None], min_V)
+    means, _ = get_cmgp_predictions(all_sensor_readings, ls, inducing_points_num, unit, sensors, unit_failure,
+                                    data, hyperparameters, lambda_hyperparameter, approx_cov_results,
+                                    preferred_device=device)
+    means = means.squeeze()
+    if beta.shape == torch.Size([1]):
+        exp_component_first = beta * means
+    else:
+        exp_component_first = beta @ means
+    exp_component_third = torch.tensor(0.0, device=device)
+    exp_component = exp_component_first + exp_component_third
+    return h0_values * torch.exp(exp_component)
+
+
+def St_cond_EST_batch_1(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings,
+                        approx_cov_results, unit_manufac, sensors, unit, t_star, t, b_dict, psi_dict, beta_dict,
+                        gamma_dict, data, hyperparameters, lambda_hyperparameter, num_samples=20):
+    s_distribution = []
+    num_points = 1000
+    ls = torch.linspace(t_star, t, num_points).to(device)
+    for failure in failure_modes:
+        p = unit_f_probabilities.get(unit).get(failure)
+        b = b_dict.get(failure)
+        psi = psi_dict.get(failure)
+        beta_values = [beta_dict.get((sensor, failure)) for sensor in sensors]
+        beta = torch.tensor(beta_values, device=device)
+        gamma = gamma_dict.get(failure)
+        min_V = min_V_by_failure_mode.get(failure)
+        vals_batch = integrand_batch_1(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls,
+                                       torch.tensor([b]), torch.tensor([psi]), beta, gamma, unit, failure,
+                                       min_V, data, hyperparameters, lambda_hyperparameter)
+        integral_approx = torch.trapz(vals_batch, ls, dim=1)
+        s_distribution.append(p * torch.exp(-integral_approx))
+    return torch.stack(s_distribution).sum()
+
+
+def integrate_St_cond_EST_batch(unit_failure_mode, min_V_by_failure_mode, failure_modes, all_sensor_readings,
+                                approx_cov_results, unit_manufacturer, sensors, unit, t_star, t_end, b_dict, psi_dict,
+                                beta_dict, gamma_dict, data, hyperparameters, lambda_hyperparameter, num_points=100):
+    ts = torch.linspace(t_star, t_end, num_points).to(device)
+    integrand_vals = []
+    for t in ts:
+        s_value = St_cond_EST_batch_1(unit_failure_mode, min_V_by_failure_mode, failure_modes, all_sensor_readings,
+                                      approx_cov_results, unit_manufacturer, sensors, unit, t_star, t, b_dict, psi_dict,
+                                      beta_dict, gamma_dict, data, hyperparameters, lambda_hyperparameter)
+        integrand_vals.append(s_value)
+    integrand_vals = torch.stack(integrand_vals)
+    return torch.trapz(integrand_vals, ts)
+
+
+def St_cond_EST_8(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings, approx_cov_results,
+                  unit_manufac, sensors, unit, t_star, t, mu_b_hat_dict, alpha_rho_hat_dict, beta_dict, gamma_dict,
+                  data,
+                  hyperparameters,
+                  lambda_hyperparameter, num_samples=20):
+    s_distribution = []
+
+    for _ in range(num_samples):
+        s = {}
+        # for failure in failure_modes:
+        if unit in range(1, 31):
+            failure = 1
+        elif unit in range(31, 101):
+            failure = 2
+        else:
+            failure = 3
+        p = unit_f_probabilities.get(unit).get(failure)
+        mu_b_hat = mu_b_hat_dict.get(failure)
+
+        alpha_rho_hat = alpha_rho_hat_dict.get(failure)
+
+        # beta = beta_dict.get(unit_failure)
+        beta_values = []
+        for sensor in sensors:
+            beta_value = beta_dict.get((sensor, failure))
+            if beta_value is not None:
+                beta_values.append(beta_value)
+            else:
+                raise ValueError(f"Beta value for sensor {sensor} and failure mode {failure} not found.")
+        beta = torch.tensor(beta_values, device=device)
+        gamma = gamma_dict.get(failure)
+        min_V = min_V_by_failure_mode.get(failure)
+
+        num_points = 1000
+        ls = torch.linspace(t_star, t, num_points).to(device)
+        vals = integrand(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, mu_b_hat,
+                         alpha_rho_hat,
+                         beta, gamma,
+                         unit,
+                         failure, min_V, data, hyperparameters,
+                         lambda_hyperparameter)
+        integral_approx = torch.trapz(vals, ls)
+        s[failure] = p * torch.exp(-integral_approx)
+
+        s_sum = sum(s.values())
+        s_distribution.append(s_sum)
+
+    return torch.tensor(s_distribution)
+
+
+###############################################################
+
+#to tes
+def h0_cs(l, b, rho, min_V):
+    return torch.exp(b + rho * l)
+
+
+def h0_cs_original(l, b, rho, min_V):
+    return torch.where(l >= min_V, torch.exp(b + rho * (l - min_V)), torch.tensor(0.0))
+
+
+def integrand_prob_batch_cs(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, mu_b_hat, sigma_b_hat,
+                            alpha_rho_hat, beta_rho_hat, beta, gamma, unit, unit_failure, min_V, data, hyperparameters,
+                            lambda_hyperparameter, num_samples):
+    b = torch.normal(mu_b_hat, sigma_b_hat, size=(num_samples,)).to(device)
+    gamma_dist = torch.distributions.gamma.Gamma(alpha_rho_hat, beta_rho_hat)
+    rho = gamma_dist.sample((num_samples,)).to(device)
+    # h0_values = h0_3(ls, b[:, None], rho[:, None], min_V)
+    h0_values = h0_cs(ls, b[:, None], rho[:, None], min_V)
+    means, cov_matrix = get_cmgp_predictions(all_sensor_readings, ls, inducing_points_num, unit,
+                                             sensors, unit_failure, data, hyperparameters,
+                                             lambda_hyperparameter, approx_cov_results, preferred_device=device)
+    means = means.squeeze()
+    variances = torch.diagonal(cov_matrix, dim1=-2, dim2=-1).squeeze(0)
+    samples = torch.normal(means, torch.sqrt(torch.abs(variances)))
+    if beta.shape == torch.Size([1]):
+        exp_component_first = beta * samples
+    else:
+        exp_component_first = beta @ samples
+    exp_component_third = torch.tensor(0.0, device=device)
+    exp_component = exp_component_first + exp_component_third
+    return h0_values * torch.exp(exp_component)
+
+
+def St_cond_EST_prob_batch_cs(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings,
+                              approx_cov_results, unit_manufac, sensors, unit, t_star, t, mu_b_hat_dict,
+                              sigma_b_hat_dict,
+                              alpha_rho_hat_dict, beta_rho_hat_dict, beta_dict, gamma_dict, data, hyperparameters,
+                              lambda_hyperparameter, num_samples=20):
+    s_distribution = []
+    p_for_failures = [float(unit_f_probabilities[unit][f]) for f in failure_modes]
+    n_for_failures = [int(round(p * num_samples)) for p in p_for_failures]
+    difference = num_samples - sum(n_for_failures)
+    if difference != 0:
+        max_index = max(range(len(p_for_failures)), key=lambda i: p_for_failures[i])
+        n_for_failures[max_index] += difference
+    num_points = 1000
+    ls = torch.linspace(t_star, t, num_points).to(device)
+    for failure, n_samples_for_failure in zip(failure_modes, n_for_failures):
+        if n_samples_for_failure == 0:
+            continue
+        mu_b_hat = mu_b_hat_dict.get(failure)
+        sigma_b_hat = sigma_b_hat_dict.get(failure)
+        alpha_rho_hat = alpha_rho_hat_dict.get(failure)
+        beta_rho_hat = beta_rho_hat_dict.get(failure)
+        beta_values = [beta_dict.get((sensor, failure)) for sensor in sensors]
+        beta = torch.tensor(beta_values, device=device)
+        gamma = gamma_dict.get(failure)
+        min_V = min_V_by_failure_mode.get(failure)
+        vals_batch = integrand_prob_batch_cs(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls,
+                                             mu_b_hat, sigma_b_hat, alpha_rho_hat, beta_rho_hat, beta, gamma, unit,
+                                             failure, min_V, data, hyperparameters, lambda_hyperparameter,
+                                             n_samples_for_failure)
+        integral_approx = torch.trapz(vals_batch, ls, dim=1)
+        s_values = torch.exp(-integral_approx)
+        s_distribution.extend(s_values.tolist())
+    return torch.tensor(s_distribution)
+
+
+######################################################################
+
+# def h0_cs_weibull(l, alpha_weibull, lam_weibull, min_V):
+#     return (alpha_weibull + 1) * lam_weibull * l** alpha_weibull
+
+def h0_cs_weibull(l, alpha_weibull, lam_weibull, min_V):
+    return torch.where(l >= min_V, (alpha_weibull + 1) * lam_weibull * l ** (alpha_weibull), torch.tensor(0.0))
+
+
+def integrand_cs_weibull_p(all_sensor_readings, approx_cov_results, unit_manufac, sensors, l, alpha_weibull,
+                           lam_weibull, beta, gamma, unit,
+                           unit_failure, min_V, data, hyperparameters, lambda_hyperparameter):
+    h0_value = h0_cs_weibull(l, alpha_weibull, lam_weibull, min_V)
+
+    # means, variances = get_cmgp_predictions(l, unit, 'P13', 1, 1,
+    #                                         data, hyperparameters,
+    #                                         lambda_hyperparameter, sigma_hyperparameter, a,
+    #                                         failure_mode_specific=False, preferred_device=device)
+
+    means, _ = get_cmgp_predictions(all_sensor_readings, l, inducing_points_num, unit,
+                                    sensors,
+                                    unit_failure,
+                                    data, hyperparameters,
+                                    lambda_hyperparameter, approx_cov_results, preferred_device=device)
+
+    means = means.squeeze()
+    if beta.shape == torch.Size([1]):
+        exp_component_first = beta * means
+    else:
+        exp_component_first = beta @ means
+    # exp_component_third = gamma * unit_manufac.get(unit)
+    exp_component_third = torch.tensor(0.0, device=device)
+    exp_component = exp_component_first + exp_component_third
+
+    return h0_value * torch.exp(exp_component)
+
+
+def St_cond_EST_wiebull_p(min_V_by_failure_mode, unit_f_probabilities, failure, all_sensor_readings, approx_cov_results,
+                          unit_manufac, sensors, unit, t_star, t, b_dict, psi_dict, beta_dict, gamma_dict, data,
+                          hyperparameters,
+                          lambda_hyperparameter):
+    # s = {}
+    # for failure in failure_modes:
+    # p = unit_f_probabilities.get(unit).get(failure)
+    b = b_dict.get(failure)
+    psi = psi_dict.get(failure)
+    # beta = beta_dict.get(unit_failure)
+    beta_values = []
+    for sensor in sensors:
+        beta_value = beta_dict.get((sensor, failure))
+        if beta_value is not None:
+            beta_values.append(beta_value)
+        else:
+            raise ValueError(f"Beta value for sensor {sensor} and failure mode {failure} not found.")
+    beta = torch.tensor(beta_values, device=device)
+    gamma = gamma_dict.get(failure)
+    min_V = min_V_by_failure_mode.get(failure)
+
+    num_points = 1000
+    ls = torch.linspace(t_star, t, num_points).to(device)
+    vals = integrand_cs_weibull_p(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, b, psi, beta,
+                                  gamma, unit,
+                                  failure, min_V, data, hyperparameters,
+                                  lambda_hyperparameter)
+    integral_approx = torch.trapz(vals, ls)
+    # s[failure] = p * torch.exp(-integral_approx)
+
+    # s_sum = sum(s.values())
+    return torch.exp(-integral_approx)
+
+
+#######################################################################################
+
+
+def h0_cs_weibull_bayes(l, alpha_weibull, lam_weibull, min_V):
+    return torch.where(l >= min_V, (alpha_weibull + 1) * lam_weibull * l ** (alpha_weibull), torch.tensor(0.0))
+
+
+def integrand_prob_batch_cs_weibull_bayes(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, alpha_weibull,
+                                          alpha_lam_hat, beta_lam_hat, beta, gamma, unit, unit_failure, min_V, data,
+                                          hyperparameters,
+                                          lambda_hyperparameter, num_samples):
+    alpha_weibull_value = torch.full((num_samples,), alpha_weibull).to(device)
+
+    gamma_dist = torch.distributions.gamma.Gamma(alpha_lam_hat, beta_lam_hat)
+    lam = gamma_dist.sample((num_samples,)).to(device)
+    # h0_values = h0_3(ls, b[:, None], rho[:, None], min_V)
+    h0_values = h0_cs_weibull_bayes(ls, alpha_weibull_value[:, None], lam[:, None], min_V)
+    means, cov_matrix = get_cmgp_predictions(all_sensor_readings, ls, inducing_points_num, unit,
+                                             sensors, unit_failure, data, hyperparameters,
+                                             lambda_hyperparameter, approx_cov_results, preferred_device=device)
+    means = means.squeeze()
+    variances = torch.diagonal(cov_matrix, dim1=-2, dim2=-1).squeeze(0)
+    samples = torch.normal(means, torch.sqrt(variances))
+    if beta.shape == torch.Size([1]):
+        exp_component_first = beta * samples
+    else:
+        exp_component_first = beta @ samples
+    exp_component_third = torch.tensor(0.0, device=device)
+    exp_component = exp_component_first + exp_component_third
+    return h0_values * torch.exp(exp_component)
+
+
+def St_cond_EST_prob_batch_cs_weibull_bayes(min_V_by_failure_mode, unit_f_probabilities, failure_modes,
+                                            all_sensor_readings,
+                                            approx_cov_results, unit_manufac, sensors, unit, t_star, t,
+                                            alpha_weibull_dict,
+                                            alpha_lam_hat_dict, beta_lam_hat_dict, beta_dict, gamma_dict, data,
+                                            hyperparameters,
+                                            lambda_hyperparameter, num_samples=20):
+    s_distribution = []
+    p_for_failures = [float(unit_f_probabilities[unit][f]) for f in failure_modes]
+    n_for_failures = [int(round(p * num_samples)) for p in p_for_failures]
+    difference = num_samples - sum(n_for_failures)
+    if difference != 0:
+        max_index = max(range(len(p_for_failures)), key=lambda i: p_for_failures[i])
+        n_for_failures[max_index] += difference
+    num_points = 1000
+    ls = torch.linspace(t_star, t, num_points).to(device)
+    for failure, n_samples_for_failure in zip(failure_modes, n_for_failures):
+        if n_samples_for_failure == 0:
+            continue
+        alpha_weibull = alpha_weibull_dict.get(failure)
+        alpha_lam_hat = alpha_lam_hat_dict.get(failure)
+        beta_lam_hat = beta_lam_hat_dict.get(failure)
+        beta_values = [beta_dict.get((sensor, failure)) for sensor in sensors]
+        beta = torch.tensor(beta_values, device=device)
+        gamma = gamma_dict.get(failure)
+        min_V = min_V_by_failure_mode.get(failure)
+        vals_batch = integrand_prob_batch_cs_weibull_bayes(all_sensor_readings, approx_cov_results, unit_manufac,
+                                                           sensors, ls,
+                                                           alpha_weibull, alpha_lam_hat, beta_lam_hat, beta, gamma,
+                                                           unit,
+                                                           failure, min_V, data, hyperparameters, lambda_hyperparameter,
+                                                           n_samples_for_failure)
+        integral_approx = torch.trapz(vals_batch, ls, dim=1)
+        s_values = torch.exp(-integral_approx)
+        s_distribution.extend(s_values.tolist())
+    return torch.tensor(s_distribution)
+
+######################################################################
+
+
+def integrand_prob_batch_MRL(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls, mu_b_hat, sigma_b_hat,
+                         alpha_rho_hat, beta_rho_hat, beta, gamma, unit, unit_failure, min_V, data, hyperparameters,
+                         lambda_hyperparameter, num_samples):
+    b = torch.normal(mu_b_hat, sigma_b_hat, size=(num_samples,)).to(device)
+    gamma_dist = torch.distributions.gamma.Gamma(alpha_rho_hat, beta_rho_hat)
+    rho = gamma_dist.sample((num_samples,)).to(device)
+    h0_values = h0_3(ls, b[:, None], rho[:, None], min_V)
+    means, cov_matrix = get_cmgp_predictions(all_sensor_readings, ls, inducing_points_num, unit,
+                                             sensors, unit_failure, data, hyperparameters,
+                                             lambda_hyperparameter, approx_cov_results, preferred_device=device)
+    means = means.squeeze()
+    variances = torch.diagonal(cov_matrix, dim1=-2, dim2=-1).squeeze(0)
+    samples = torch.normal(means, torch.sqrt(variances))
+    # samples = torch.normal(means, torch.sqrt(torch.abs(variances)))
+    if beta.shape == torch.Size([1]):
+        exp_component_first = beta * samples
+    else:
+        exp_component_first = beta @ samples
+    exp_component_third = torch.tensor(0.0, device=device)
+    exp_component = exp_component_first + exp_component_third
+    return h0_values * torch.exp(exp_component)
+
+def St_cond_EST_prob_batch_MRL(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings,
+                                approx_cov_results, unit_manufac, sensors, unit, t_star, t, mu_b_hat_dict, sigma_b_hat_dict,
+                                alpha_rho_hat_dict, beta_rho_hat_dict, beta_dict, gamma_dict, data, hyperparameters,
+                                lambda_hyperparameter, num_samples=1):
+    s_distribution = []
+    hazard_at_t_samples = []
+
+    # Sample allocation per failure mode
+    p_for_failures = [float(unit_f_probabilities[unit][f]) for f in failure_modes]
+    n_for_failures = [int(round(p * num_samples)) for p in p_for_failures]
+    diff = num_samples - sum(n_for_failures)
+    if diff != 0:
+        max_idx = max(range(len(p_for_failures)), key=lambda i: p_for_failures[i])
+        n_for_failures[max_idx] += diff
+
+    # Time grid
+    num_points = 1000
+    ls = torch.linspace(t_star, t, num_points).to(device)
+
+    for failure, n_samples in zip(failure_modes, n_for_failures):
+        if n_samples == 0:
+            continue
+
+        mu_b_hat = mu_b_hat_dict[failure]
+        sigma_b_hat = sigma_b_hat_dict[failure]
+        alpha_rho_hat = alpha_rho_hat_dict[failure]
+        beta_rho_hat = beta_rho_hat_dict[failure]
+        beta = torch.tensor([beta_dict[(sensor, failure)] for sensor in sensors], device=device)
+        gamma = gamma_dict[failure]
+        min_V = min_V_by_failure_mode[failure]
+
+        vals_batch = integrand_prob_batch_MRL(
+            all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls,
+            mu_b_hat, sigma_b_hat, alpha_rho_hat, beta_rho_hat, beta, gamma, unit,
+            failure, min_V, data, hyperparameters, lambda_hyperparameter, n_samples
+        )
+
+        # Compute survival from integral
+        integral_approx = torch.trapz(vals_batch, ls, dim=1)
+        s_values = torch.exp(-integral_approx)
+        s_distribution.extend(s_values.tolist())
+
+        # Hazard at t is last value in each trajectory
+        hazard_t = vals_batch[:, -1]
+        hazard_at_t_samples.extend(hazard_t.tolist())
+
+    return torch.tensor(s_distribution), torch.tensor(hazard_at_t_samples)
+
+
+
+
+
+
+
+def St_cond_EST_prob_batch_cs_MRL(min_V_by_failure_mode, unit_f_probabilities, failure_modes, all_sensor_readings,
+                              approx_cov_results, unit_manufac, sensors, unit, t_star, t, mu_b_hat_dict,
+                              sigma_b_hat_dict,
+                              alpha_rho_hat_dict, beta_rho_hat_dict, beta_dict, gamma_dict, data, hyperparameters,
+                              lambda_hyperparameter, num_samples=1):
+    s_distribution = []
+    hazard_at_t_samples = []
+    p_for_failures = [float(unit_f_probabilities[unit][f]) for f in failure_modes]
+    n_for_failures = [int(round(p * num_samples)) for p in p_for_failures]
+    difference = num_samples - sum(n_for_failures)
+    if difference != 0:
+        max_index = max(range(len(p_for_failures)), key=lambda i: p_for_failures[i])
+        n_for_failures[max_index] += difference
+    num_points = 1000
+    ls = torch.linspace(t_star, t, num_points).to(device)
+    for failure, n_samples_for_failure in zip(failure_modes, n_for_failures):
+        if n_samples_for_failure == 0:
+            continue
+        mu_b_hat = mu_b_hat_dict.get(failure)
+        sigma_b_hat = sigma_b_hat_dict.get(failure)
+        alpha_rho_hat = alpha_rho_hat_dict.get(failure)
+        beta_rho_hat = beta_rho_hat_dict.get(failure)
+        beta_values = [beta_dict.get((sensor, failure)) for sensor in sensors]
+        beta = torch.tensor(beta_values, device=device)
+        gamma = gamma_dict.get(failure)
+        min_V = min_V_by_failure_mode.get(failure)
+        vals_batch = integrand_prob_batch_cs(all_sensor_readings, approx_cov_results, unit_manufac, sensors, ls,
+                                             mu_b_hat, sigma_b_hat, alpha_rho_hat, beta_rho_hat, beta, gamma, unit,
+                                             failure, min_V, data, hyperparameters, lambda_hyperparameter,
+                                             n_samples_for_failure)
+        integral_approx = torch.trapz(vals_batch, ls, dim=1)
+        s_values = torch.exp(-integral_approx)
+        s_distribution.extend(s_values.tolist())
+        # Hazard at t is last value in each trajectory
+        hazard_t = vals_batch[:, -1]
+        hazard_at_t_samples.extend(hazard_t.tolist())
+
+    return torch.tensor(s_distribution), torch.tensor(hazard_at_t_samples)

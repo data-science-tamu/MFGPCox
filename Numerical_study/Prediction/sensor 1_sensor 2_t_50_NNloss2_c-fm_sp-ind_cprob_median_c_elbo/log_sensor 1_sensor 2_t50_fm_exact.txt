@@ -1,0 +1,64 @@
+num_of_sensors: 2 ==> sensors: ['sensor 1', 'sensor 2']
+
+beta:{('sensor 1', 1): tensor(0.0192, device='cuda:0'), ('sensor 1', 2): tensor(0.0155, device='cuda:0'), ('sensor 2', 1): tensor(0.0159, device='cuda:0'), ('sensor 2', 2): tensor(0.0146, device='cuda:0')},
+mu_b_hat:{1: tensor(-6.9547, device='cuda:0'), 2: tensor(-10.1016, device='cuda:0')},
+sigma_b_hat:{1: tensor(0.1286, device='cuda:0'), 2: tensor(0.1267, device='cuda:0')},
+alpha_rho_hat:{1: tensor(51.3574, device='cuda:0'), 2: tensor(20.4398, device='cuda:0')},
+beta_rho_hat:{1: tensor(3661.0154, device='cuda:0'), 2: tensor(3964.3647, device='cuda:0')},
+alpha_hat:{1: tensor(1.1000, device='cuda:0'), 2: tensor(1.1000, device='cuda:0')},
+pi_hat:{1: tensor(0.5000, device='cuda:0'), 2: tensor(0.5000, device='cuda:0')},
+gamma:{1: tensor(0.3076, device='cuda:0'), 2: tensor(0.9585, device='cuda:0')}
+
+Unit:51 ===> P1: 1.0,  P2: 3.363116314379561e-44
+Unit:52 ===> P1: 1.0,  P2: 0.0
+Unit:53 ===> P1: 1.0,  P2: 4.698142985759546e-10
+Unit:54 ===> P1: 1.0,  P2: 6.680407529241483e-12
+Unit:55 ===> P1: 1.0,  P2: 7.311651285422234e-27
+Unit:56 ===> P1: 1.0,  P2: 6.541395106046178e-16
+Unit:57 ===> P1: 1.0,  P2: 2.3266893109437893e-26
+Unit:58 ===> P1: 1.0,  P2: 1.0448365374236579e-32
+Unit:59 ===> P1: 1.0,  P2: 0.0
+Unit:60 ===> P1: 1.0,  P2: 0.0
+Unit:111 ===> P1: 0.0,  P2: 1.0
+Unit:112 ===> P1: 0.0,  P2: 1.0
+Unit:113 ===> P1: 2.0545887009646684e-23,  P2: 1.0
+Unit:114 ===> P1: 1.961817850054744e-44,  P2: 1.0
+Unit:115 ===> P1: 0.0,  P2: 1.0
+Unit:116 ===> P1: 0.0,  P2: 1.0
+Unit:117 ===> P1: 0.0,  P2: 1.0
+Unit:118 ===> P1: 0.0,  P2: 1.0
+Unit:119 ===> P1: 0.0,  P2: 1.0
+Unit:120 ===> P1: 4.105804500471714e-43,  P2: 1.0
+
+
+Unit: 51 ==> Failure Mode: 1
+Unit: 52 ==> Failure Mode: 1
+Unit: 53 ==> Failure Mode: 1
+Unit: 54 ==> Failure Mode: 1
+Unit: 55 ==> Failure Mode: 1
+Unit: 56 ==> Failure Mode: 1
+Unit: 57 ==> Failure Mode: 1
+Unit: 58 ==> Failure Mode: 1
+Unit: 59 ==> Failure Mode: 1
+Unit: 60 ==> Failure Mode: 1
+Unit: 111 ==> Failure Mode: 2
+Unit: 112 ==> Failure Mode: 2
+Unit: 113 ==> Failure Mode: 2
+Unit: 114 ==> Failure Mode: 2
+Unit: 115 ==> Failure Mode: 2
+Unit: 116 ==> Failure Mode: 2
+Unit: 117 ==> Failure Mode: 2
+Unit: 118 ==> Failure Mode: 2
+Unit: 119 ==> Failure Mode: 2
+Unit: 120 ==> Failure Mode: 2
+
+
+Results saved to failure_mode_probs.csv
+Overall Accuracy: 1.00
+
+
+Accuracy for Failure Mode 1: 1.00
+Accuracy for Failure Mode 2: 1.00
+[(51, 50, 26.715320000000006), (52, 50, 29.172619999999995), (53, 50, -16.631473999999997), (54, 50, 25.407830000000004), (55, 50, 42.918499999999995), (56, 50, 24.527379999999994), (57, 50, 24.14148), (58, 50, 31.508830000000003), (59, 50, 29.787719999999993), (60, 50, 29.176820000000006), (111, 50, 57.27247), (112, 50, 58.804500000000004), (113, 50, -8.61683), (114, 50, 25.051925999999995), (115, 50, 54.184870000000004), (116, 50, 69.0141), (117, 50, 68.34844), (118, 50, 25.83959), (119, 50, 70.764435), (120, 50, 60.28184)]
+number of samples: 10000
+Total Execution Time: 511.00160 seconds

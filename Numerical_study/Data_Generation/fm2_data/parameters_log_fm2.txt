@@ -1,0 +1,5 @@
+sigma_j1: 0.8
+sigma_j2: 0.7
+beta1: 0.018
+beta2: 0.01
+N: 60

@@ -1,0 +1,64 @@
+num_of_sensors: 2 ==> sensors: ['sensor 1', 'sensor 2']
+
+beta:{('sensor 1', 1): tensor(0.0192, device='cuda:0'), ('sensor 1', 2): tensor(0.0155, device='cuda:0'), ('sensor 2', 1): tensor(0.0159, device='cuda:0'), ('sensor 2', 2): tensor(0.0146, device='cuda:0')},
+mu_b_hat:{1: tensor(-6.9547, device='cuda:0'), 2: tensor(-10.1016, device='cuda:0')},
+sigma_b_hat:{1: tensor(0.1286, device='cuda:0'), 2: tensor(0.1267, device='cuda:0')},
+alpha_rho_hat:{1: tensor(51.3574, device='cuda:0'), 2: tensor(20.4398, device='cuda:0')},
+beta_rho_hat:{1: tensor(3661.0154, device='cuda:0'), 2: tensor(3964.3647, device='cuda:0')},
+alpha_hat:{1: tensor(1.1000, device='cuda:0'), 2: tensor(1.1000, device='cuda:0')},
+pi_hat:{1: tensor(0.5000, device='cuda:0'), 2: tensor(0.5000, device='cuda:0')},
+gamma:{1: tensor(0.3076, device='cuda:0'), 2: tensor(0.9585, device='cuda:0')}
+
+Unit:51 ===> P1: 0.9952660202980042,  P2: 0.004734034650027752
+Unit:52 ===> P1: 0.9913265705108643,  P2: 0.008673403412103653
+Unit:53 ===> P1: 0.9998742938041687,  P2: 0.00012569657701533288
+Unit:54 ===> P1: 0.999884307384491,  P2: 0.00011566714965738356
+Unit:55 ===> P1: 0.7462199330329895,  P2: 0.2537800967693329
+Unit:56 ===> P1: 0.9826982021331787,  P2: 0.017301827669143677
+Unit:57 ===> P1: 0.9995412230491638,  P2: 0.0004587761650327593
+Unit:58 ===> P1: 0.9993478655815125,  P2: 0.0006521674804389477
+Unit:59 ===> P1: 0.9999396204948425,  P2: 6.0408448916859925e-05
+Unit:60 ===> P1: 0.9999917149543762,  P2: 8.282694579975214e-06
+Unit:111 ===> P1: 0.0182244461029768,  P2: 0.9817755818367004
+Unit:112 ===> P1: 0.4045809209346771,  P2: 0.5954190492630005
+Unit:113 ===> P1: 0.1462872326374054,  P2: 0.853712797164917
+Unit:114 ===> P1: 0.007294048555195332,  P2: 0.9927060008049011
+Unit:115 ===> P1: 0.009615546092391014,  P2: 0.9903843998908997
+Unit:116 ===> P1: 0.007587978150695562,  P2: 0.9924120306968689
+Unit:117 ===> P1: 3.1364816095447168e-06,  P2: 0.9999969005584717
+Unit:118 ===> P1: 0.1520826667547226,  P2: 0.847917377948761
+Unit:119 ===> P1: 0.002394479000940919,  P2: 0.9976055026054382
+Unit:120 ===> P1: 0.002171669388189912,  P2: 0.9978283643722534
+
+
+Unit: 51 ==> Failure Mode: 1
+Unit: 52 ==> Failure Mode: 1
+Unit: 53 ==> Failure Mode: 1
+Unit: 54 ==> Failure Mode: 1
+Unit: 55 ==> Failure Mode: 1
+Unit: 56 ==> Failure Mode: 1
+Unit: 57 ==> Failure Mode: 1
+Unit: 58 ==> Failure Mode: 1
+Unit: 59 ==> Failure Mode: 1
+Unit: 60 ==> Failure Mode: 1
+Unit: 111 ==> Failure Mode: 2
+Unit: 112 ==> Failure Mode: 2
+Unit: 113 ==> Failure Mode: 2
+Unit: 114 ==> Failure Mode: 2
+Unit: 115 ==> Failure Mode: 2
+Unit: 116 ==> Failure Mode: 2
+Unit: 117 ==> Failure Mode: 2
+Unit: 118 ==> Failure Mode: 2
+Unit: 119 ==> Failure Mode: 2
+Unit: 120 ==> Failure Mode: 2
+
+
+Results saved to failure_mode_probs.csv
+Overall Accuracy: 1.00
+
+
+Accuracy for Failure Mode 1: 1.00
+Accuracy for Failure Mode 2: 1.00
+[(51, 20, 56.715320000000006), (52, 20, 59.172619999999995), (53, 20, 13.368526000000003), (54, 20, 55.407830000000004), (55, 20, 72.9185), (56, 20, 54.527379999999994), (57, 20, 54.14148), (58, 20, 61.50883), (59, 20, 59.78771999999999), (60, 20, 59.176820000000006), (111, 20, 87.27247), (112, 20, 88.8045), (113, 20, 21.38317), (114, 20, 55.051925999999995), (115, 20, 84.18487), (116, 20, 99.0141), (117, 20, 98.34844), (118, 20, 55.83959), (119, 20, 100.764435), (120, 20, 90.28184)]
+number of samples: 10000
+Total Execution Time: 590.72177 seconds
