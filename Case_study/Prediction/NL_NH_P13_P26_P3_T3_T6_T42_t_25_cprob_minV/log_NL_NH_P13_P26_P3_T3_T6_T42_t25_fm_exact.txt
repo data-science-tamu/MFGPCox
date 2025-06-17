@@ -1,0 +1,265 @@
+num_of_sensors: 8 ==> sensors: ['NL', 'NH', 'P13', 'P26', 'P3', 'T3', 'T6', 'T42']
+
+beta:{('NL', 1): tensor(0.6123), ('NL', 2): tensor(-5.0644), ('NL', 3): tensor(-6.3549), ('NH', 1): tensor(-1.2561), ('NH', 2): tensor(-4.1068), ('NH', 3): tensor(-0.5228), ('P13', 1): tensor(-0.5129), ('P13', 2): tensor(-3.8162), ('P13', 3): tensor(-2.5923), ('P26', 1): tensor(0.3614), ('P26', 2): tensor(-2.7711), ('P26', 3): tensor(-0.8364), ('P3', 1): tensor(-0.3564), ('P3', 2): tensor(-3.9631), ('P3', 3): tensor(-0.3663), ('T3', 1): tensor(-1.6080), ('T3', 2): tensor(-3.7922), ('T3', 3): tensor(-1.0633), ('T6', 1): tensor(0.4528), ('T6', 2): tensor(-1.6373), ('T6', 3): tensor(3.4397), ('T42', 1): tensor(1.1245), ('T42', 2): tensor(0.3505), ('T42', 3): tensor(1.6917)},
+mu_b_hat:{1: tensor(-3.6775), 2: tensor(-3.2832), 3: tensor(-12.6849)},
+sigma_b_hat:{1: tensor(0.5439), 2: tensor(0.5442), 3: tensor(0.5369)},
+alpha_rho_hat:{1: tensor(5.3974), 2: tensor(5.6932), 3: tensor(2.4747)},
+beta_rho_hat:{1: tensor(30.3595), 2: tensor(44.8711), 3: tensor(100.2320)},
+alpha_hat:{1: tensor(0.5168), 2: tensor(0.8209), 3: tensor(0.2074)},
+pi_hat:{1: tensor(0.3333), 2: tensor(0.3334), 3: tensor(0.3333)},
+gamma:{1: tensor(0.3076), 2: tensor(0.9585), 3: tensor(0.5844)}
+
+Unit:11 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:12 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:13 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:14 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:15 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:16 ===> P1: 1.0,  P2: 0.0,  P3: 6.535375777918082e-41
+Unit:17 ===> P1: 1.0,  P2: 0.0,  P3: 9.091119969092256e-40
+Unit:18 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:19 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:20 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:21 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:22 ===> P1: 1.0,  P2: 0.0,  P3: 3.2803653576930735e-35
+Unit:23 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:24 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:25 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:26 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:27 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:28 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:29 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:30 ===> P1: 1.0,  P2: 0.0,  P3: 0.0
+Unit:41 ===> P1: 0.0,  P2: 1.0,  P3: 5.222006716683749e-19
+Unit:42 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:43 ===> P1: 0.0,  P2: 1.0,  P3: 1.0055063803563173e-18
+Unit:44 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:45 ===> P1: 0.0,  P2: 1.0,  P3: 8.703311708036811e-16
+Unit:46 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:47 ===> P1: 0.0,  P2: 1.0,  P3: 4.879139318804753e-19
+Unit:48 ===> P1: 0.0,  P2: 1.0,  P3: 2.586336965651622e-15
+Unit:49 ===> P1: 0.0,  P2: 1.0,  P3: 3.003272205036843e-15
+Unit:50 ===> P1: 0.0,  P2: 1.0,  P3: 3.4796857935757956e-18
+Unit:51 ===> P1: 0.0,  P2: 1.0,  P3: 6.376446862932662e-19
+Unit:52 ===> P1: 0.0,  P2: 1.0,  P3: 7.057608218442879e-17
+Unit:53 ===> P1: 0.0,  P2: 1.0,  P3: 2.749477053157462e-17
+Unit:54 ===> P1: 0.0,  P2: 1.0,  P3: 4.4780362137734013e-17
+Unit:55 ===> P1: 0.0,  P2: 1.0,  P3: 7.959683583453805e-18
+Unit:56 ===> P1: 0.0,  P2: 1.0,  P3: 1.4625451496383974e-20
+Unit:57 ===> P1: 0.0,  P2: 1.0,  P3: 1.0256287853916855e-16
+Unit:58 ===> P1: 0.0,  P2: 1.0,  P3: 9.473588382495499e-17
+Unit:59 ===> P1: 0.0,  P2: 1.0,  P3: 4.2726319152043156e-16
+Unit:60 ===> P1: 0.0,  P2: 1.0,  P3: 1.3718206800551747e-15
+Unit:61 ===> P1: 0.0,  P2: 1.0,  P3: 2.4088678169917054e-18
+Unit:62 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:63 ===> P1: 0.0,  P2: 1.0,  P3: 8.88571889665182e-18
+Unit:64 ===> P1: 0.0,  P2: 1.0,  P3: 9.462960683267356e-19
+Unit:65 ===> P1: 0.0,  P2: 1.0,  P3: 1.3195169249578136e-15
+Unit:66 ===> P1: 0.0,  P2: 1.0,  P3: 3.499767555091766e-16
+Unit:67 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:68 ===> P1: 0.0,  P2: 1.0,  P3: 5.602373189579979e-17
+Unit:69 ===> P1: 0.0,  P2: 1.0,  P3: 1.0721970024705018e-16
+Unit:70 ===> P1: 0.0,  P2: 1.0,  P3: 1.8701120311258524e-16
+Unit:71 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:72 ===> P1: 0.0,  P2: 1.0,  P3: 2.0398014501717566e-15
+Unit:73 ===> P1: 0.0,  P2: 1.0,  P3: 2.8139381067106414e-15
+Unit:74 ===> P1: 0.0,  P2: 1.0,  P3: 1.2830576411168495e-14
+Unit:75 ===> P1: 0.0,  P2: 1.0,  P3: 4.528067141245263e-16
+Unit:76 ===> P1: 0.0,  P2: 1.0,  P3: 5.719570388697758e-16
+Unit:77 ===> P1: 0.0,  P2: 1.0,  P3: 9.101759861086888e-19
+Unit:78 ===> P1: 0.0,  P2: 1.0,  P3: 6.097037386751836e-16
+Unit:79 ===> P1: 0.0,  P2: 1.0,  P3: 3.5220396511651073e-15
+Unit:80 ===> P1: 0.0,  P2: 1.0,  P3: 7.949649882623537e-18
+Unit:81 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:82 ===> P1: 0.0,  P2: 1.0,  P3: 3.1603093738356015e-17
+Unit:83 ===> P1: 0.0,  P2: 1.0,  P3: 2.6005100850490237e-12
+Unit:84 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:85 ===> P1: 0.0,  P2: 1.0,  P3: 1.4599377160813865e-17
+Unit:86 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:87 ===> P1: 0.0,  P2: 1.0,  P3: 4.917455535108882e-14
+Unit:88 ===> P1: 0.0,  P2: 1.0,  P3: 1.044558185052696e-16
+Unit:89 ===> P1: 0.0,  P2: 1.0,  P3: 3.089641105349754e-14
+Unit:90 ===> P1: 0.0,  P2: 1.0,  P3: 1.979355576393253e-19
+Unit:91 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:92 ===> P1: 0.0,  P2: 1.0,  P3: 2.1037154223496612e-12
+Unit:93 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:94 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:95 ===> P1: 0.0,  P2: 1.0,  P3: 4.1841040020242364e-16
+Unit:96 ===> P1: 0.0,  P2: 1.0,  P3: 5.888810450147699e-18
+Unit:97 ===> P1: 0.0,  P2: 1.0,  P3: 0.0
+Unit:98 ===> P1: 0.0,  P2: 1.0,  P3: 3.183666958760871e-19
+Unit:99 ===> P1: 0.0,  P2: 1.0,  P3: 6.502991691008852e-16
+Unit:100 ===> P1: 0.0,  P2: 1.0,  P3: 1.4519486733764514e-16
+Unit:111 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:112 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:113 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:114 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:115 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:116 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:117 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:118 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:119 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:120 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:121 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:122 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:123 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:124 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:125 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:126 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:127 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:128 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:129 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:130 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:131 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:132 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:133 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:134 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:135 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:136 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:137 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:138 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:139 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:140 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:141 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:142 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:143 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:144 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:145 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:146 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:147 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:148 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:149 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+Unit:150 ===> P1: 0.0,  P2: 0.0,  P3: 1.0
+
+
+Unit: 11 ==> Failure Mode: 1
+Unit: 12 ==> Failure Mode: 1
+Unit: 13 ==> Failure Mode: 1
+Unit: 14 ==> Failure Mode: 1
+Unit: 15 ==> Failure Mode: 1
+Unit: 16 ==> Failure Mode: 1
+Unit: 17 ==> Failure Mode: 1
+Unit: 18 ==> Failure Mode: 1
+Unit: 19 ==> Failure Mode: 1
+Unit: 20 ==> Failure Mode: 1
+Unit: 21 ==> Failure Mode: 1
+Unit: 22 ==> Failure Mode: 1
+Unit: 23 ==> Failure Mode: 1
+Unit: 24 ==> Failure Mode: 1
+Unit: 25 ==> Failure Mode: 1
+Unit: 26 ==> Failure Mode: 1
+Unit: 27 ==> Failure Mode: 1
+Unit: 28 ==> Failure Mode: 1
+Unit: 29 ==> Failure Mode: 1
+Unit: 30 ==> Failure Mode: 1
+Unit: 41 ==> Failure Mode: 2
+Unit: 42 ==> Failure Mode: 2
+Unit: 43 ==> Failure Mode: 2
+Unit: 44 ==> Failure Mode: 2
+Unit: 45 ==> Failure Mode: 2
+Unit: 46 ==> Failure Mode: 2
+Unit: 47 ==> Failure Mode: 2
+Unit: 48 ==> Failure Mode: 2
+Unit: 49 ==> Failure Mode: 2
+Unit: 50 ==> Failure Mode: 2
+Unit: 51 ==> Failure Mode: 2
+Unit: 52 ==> Failure Mode: 2
+Unit: 53 ==> Failure Mode: 2
+Unit: 54 ==> Failure Mode: 2
+Unit: 55 ==> Failure Mode: 2
+Unit: 56 ==> Failure Mode: 2
+Unit: 57 ==> Failure Mode: 2
+Unit: 58 ==> Failure Mode: 2
+Unit: 59 ==> Failure Mode: 2
+Unit: 60 ==> Failure Mode: 2
+Unit: 61 ==> Failure Mode: 2
+Unit: 62 ==> Failure Mode: 2
+Unit: 63 ==> Failure Mode: 2
+Unit: 64 ==> Failure Mode: 2
+Unit: 65 ==> Failure Mode: 2
+Unit: 66 ==> Failure Mode: 2
+Unit: 67 ==> Failure Mode: 2
+Unit: 68 ==> Failure Mode: 2
+Unit: 69 ==> Failure Mode: 2
+Unit: 70 ==> Failure Mode: 2
+Unit: 71 ==> Failure Mode: 2
+Unit: 72 ==> Failure Mode: 2
+Unit: 73 ==> Failure Mode: 2
+Unit: 74 ==> Failure Mode: 2
+Unit: 75 ==> Failure Mode: 2
+Unit: 76 ==> Failure Mode: 2
+Unit: 77 ==> Failure Mode: 2
+Unit: 78 ==> Failure Mode: 2
+Unit: 79 ==> Failure Mode: 2
+Unit: 80 ==> Failure Mode: 2
+Unit: 81 ==> Failure Mode: 2
+Unit: 82 ==> Failure Mode: 2
+Unit: 83 ==> Failure Mode: 2
+Unit: 84 ==> Failure Mode: 2
+Unit: 85 ==> Failure Mode: 2
+Unit: 86 ==> Failure Mode: 2
+Unit: 87 ==> Failure Mode: 2
+Unit: 88 ==> Failure Mode: 2
+Unit: 89 ==> Failure Mode: 2
+Unit: 90 ==> Failure Mode: 2
+Unit: 91 ==> Failure Mode: 2
+Unit: 92 ==> Failure Mode: 2
+Unit: 93 ==> Failure Mode: 2
+Unit: 94 ==> Failure Mode: 2
+Unit: 95 ==> Failure Mode: 2
+Unit: 96 ==> Failure Mode: 2
+Unit: 97 ==> Failure Mode: 2
+Unit: 98 ==> Failure Mode: 2
+Unit: 99 ==> Failure Mode: 2
+Unit: 100 ==> Failure Mode: 2
+Unit: 111 ==> Failure Mode: 3
+Unit: 112 ==> Failure Mode: 3
+Unit: 113 ==> Failure Mode: 3
+Unit: 114 ==> Failure Mode: 3
+Unit: 115 ==> Failure Mode: 3
+Unit: 116 ==> Failure Mode: 3
+Unit: 117 ==> Failure Mode: 3
+Unit: 118 ==> Failure Mode: 3
+Unit: 119 ==> Failure Mode: 3
+Unit: 120 ==> Failure Mode: 3
+Unit: 121 ==> Failure Mode: 3
+Unit: 122 ==> Failure Mode: 3
+Unit: 123 ==> Failure Mode: 3
+Unit: 124 ==> Failure Mode: 3
+Unit: 125 ==> Failure Mode: 3
+Unit: 126 ==> Failure Mode: 3
+Unit: 127 ==> Failure Mode: 3
+Unit: 128 ==> Failure Mode: 3
+Unit: 129 ==> Failure Mode: 3
+Unit: 130 ==> Failure Mode: 3
+Unit: 131 ==> Failure Mode: 3
+Unit: 132 ==> Failure Mode: 3
+Unit: 133 ==> Failure Mode: 3
+Unit: 134 ==> Failure Mode: 3
+Unit: 135 ==> Failure Mode: 3
+Unit: 136 ==> Failure Mode: 3
+Unit: 137 ==> Failure Mode: 3
+Unit: 138 ==> Failure Mode: 3
+Unit: 139 ==> Failure Mode: 3
+Unit: 140 ==> Failure Mode: 3
+Unit: 141 ==> Failure Mode: 3
+Unit: 142 ==> Failure Mode: 3
+Unit: 143 ==> Failure Mode: 3
+Unit: 144 ==> Failure Mode: 3
+Unit: 145 ==> Failure Mode: 3
+Unit: 146 ==> Failure Mode: 3
+Unit: 147 ==> Failure Mode: 3
+Unit: 148 ==> Failure Mode: 3
+Unit: 149 ==> Failure Mode: 3
+Unit: 150 ==> Failure Mode: 3
+
+
+Results saved to failure_mode_probs.csv
+Overall Accuracy: 1.00
+
+
+Accuracy for Failure Mode 1: 1.00
+Accuracy for Failure Mode 2: 1.00
+Accuracy for Failure Mode 3: 1.00
+[(11, 25, 101), (12, 25, 99), (13, 25, 96), (14, 25, 96), (15, 25, 99), (16, 25, 106), (17, 25, 99), (18, 25, 101), (19, 25, 97), (20, 25, 102), (21, 25, 97), (22, 25, 100), (23, 25, 94), (24, 25, 100), (25, 25, 99), (26, 25, 101), (27, 25, 92), (28, 25, 101), (29, 25, 98), (30, 25, 94), (41, 25, 147), (42, 25, 139), (43, 25, 141), (44, 25, 139), (45, 25, 145), (46, 25, 137), (47, 25, 147), (48, 25, 145), (49, 25, 143), (50, 25, 142), (51, 25, 133), (52, 25, 154), (53, 25, 130), (54, 25, 146), (55, 25, 138), (56, 25, 141), (57, 25, 140), (58, 25, 139), (59, 25, 134), (60, 25, 138), (61, 25, 135), (62, 25, 133), (63, 25, 144), (64, 25, 137), (65, 25, 142), (66, 25, 142), (67, 25, 136), (68, 25, 140), (69, 25, 143), (70, 25, 150), (71, 25, 138), (72, 25, 146), (73, 25, 135), (74, 25, 144), (75, 25, 144), (76, 25, 143), (77, 25, 148), (78, 25, 137), (79, 25, 144), (80, 25, 137), (81, 25, 136), (82, 25, 140), (83, 25, 153), (84, 25, 149), (85, 25, 139), (86, 25, 140), (87, 25, 138), (88, 25, 136), (89, 25, 137), (90, 25, 134), (91, 25, 140), (92, 25, 129), (93, 25, 136), (94, 25, 136), (95, 25, 136), (96, 25, 142), (97, 25, 139), (98, 25, 144), (99, 25, 146), (100, 25, 140), (111, 25, 122), (112, 25, 116), (113, 25, 123), (114, 25, 123), (115, 25, 123), (116, 25, 130), (117, 25, 119), (118, 25, 130), (119, 25, 119), (120, 25, 119), (121, 25, 124), (122, 25, 110), (123, 25, 126), (124, 25, 118), (125, 25, 119), (126, 25, 132), (127, 25, 126), (128, 25, 118), (129, 25, 121), (130, 25, 114), (131, 25, 140), (132, 25, 119), (133, 25, 112), (134, 25, 120), (135, 25, 134), (136, 25, 118), (137, 25, 126), (138, 25, 135), (139, 25, 139), (140, 25, 122), (141, 25, 129), (142, 25, 109), (143, 25, 111), (144, 25, 117), (145, 25, 118), (146, 25, 132), (147, 25, 126), (148, 25, 112), (149, 25, 117), (150, 25, 130)]
+number of samples: 10000
+Total Execution Time: 4518.44308 seconds
