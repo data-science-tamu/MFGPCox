@@ -1,0 +1,4 @@
+Model	MRL_Coverage_Proportion
+CMGP-Cox	0.9
+NN_joint(ideal)	0.55
+NN_joint(mis)	0.5

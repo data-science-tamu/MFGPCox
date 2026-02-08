@@ -41,7 +41,7 @@ initial_hyperparameters, initial_lambda_hyp = generate_initial_hyperparameters_2
 
 loaded_hyperparams = torch.load(
     os.path.join(base_dir, r"optim_hyperparam_unit_res2_2025-01-01_12-20-31/iteration_200000"
-                           r"/optimized_hyperparameters_unit_specific_res2_200000.pth"), map_location=device)
+                           r"/optimized_CMGP_hyperparameters_unit_specific.pth"), map_location=device)
 
 # Accessing the loaded hyperparameters
 loaded_hyperparameters = loaded_hyperparams['optimized_hyperparameters']

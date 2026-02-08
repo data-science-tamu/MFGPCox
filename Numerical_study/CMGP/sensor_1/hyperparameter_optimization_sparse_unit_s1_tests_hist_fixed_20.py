@@ -43,8 +43,8 @@ failure_modes = historical_test['failure mode'].unique()
 # hyperparameters
 
 loaded_hyperparams = torch.load(
-    os.path.join(base_dir, r"optimized_hyperparameters_unit_specific_2025-01-03_11-47-46/iteration_10000"
-                           r"/optimized_hyperparameters_unit_specific_xi_10000.pth"), map_location=device)
+    os.path.join(base_dir, r"optimized_CMGP_hyperparameters_unit_specific"
+                           r"/optimized_CMGP_hyperparameters_unit_specific.pth"), map_location=device)
 
 # Accessing the loaded hyperparameters
 loaded_hyperparameters = loaded_hyperparams['optimized_hyperparameters']

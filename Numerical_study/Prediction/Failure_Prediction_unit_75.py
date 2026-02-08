@@ -30,7 +30,7 @@ sensors_list = ["sensor 1", "sensor 2"]
 
 sensors_str = "_".join(sensors_list)
 
-save_directory = f'{sensors_str}_t_{t}_NNloss{NN_loss_type}_c-fm_sp-ind_cprob_median_c_elbo'
+save_directory = f'{sensors_str}_t_{t}_NNloss{NN_loss_type}_c-fm_sp-ind_cprob_median_c_elbo_new_run'
 
 # if os.path.exists(save_directory):
 #     raise FileExistsError(f"The directory '{save_directory}' already exists.")
@@ -76,13 +76,12 @@ loaded_hyperparameters = {}
 loaded_lambda_hyp = {}
 
 sensor_gp_hyperparameter_paths = {
-    'sensor 1': "./sensor_1/optimized_hyperparameters_fm_specific_2024-12-25_19-01-31/iteration_50000"
-                "/optimized_hyperparameters_fm_specific_50000.pth",
+    'sensor 1': "../CMGP\sensor_1\optimized_CMGP_hyperparameters\optimized_CMGP_hyperparameters_fm_specific"
+                "\optimized_hyperparameters_fm_specific.pth",
 
-    'sensor 2': "./sensor_2/optimized_hyperparameters_fm_specific_2024-12-25_19-06-11/iteration_20000"
-                "/optimized_hyperparameters_fm_specific_20000.pth"
+    'sensor 2': "../CMGP\sensor_2\optimized_CMGP_hyperparameters\optimized_CMGP_hyperparameters_fm_specific"
+                "\optimized_hyperparameters_fm_specific.pth"
 }
-
 
 for sensor, path in sensor_gp_hyperparameter_paths.items():
     loaded_hyperparams = torch.load(path, map_location=device)
@@ -96,16 +95,8 @@ for sensor, path in sensor_gp_hyperparameter_paths.items():
 #######################################################################################################################
 # loading Cox parameters
 
-loaded_params = torch.load(os.path.join(base_dir, r"optimized_parameters_unit_2S_2025-05-15_18-25-48/iteration_33000"
-                                                  r"/optimized_parameters_unit_2S_final_cottected_pi_33000.pth"),
-                           map_location=device)
+loaded_params = torch.load(r"../ELBO_Maximization/optimized_ELBO_parameters.pth", map_location=device)
 
-
-# loaded_params = torch.load(os.path.join(base_dir, r"optimized_parameters_unit_2S_final_weight_on_kl_2025-01-04_21-57"
-#                                                   r"-39/iteration_15000"
-#                                                   r"/optimized_parameters_unit_2S_final_weight_on_kl_15000.pth"))
-
-# loaded_pi_hat = loaded_params['optimized_pi_hat']
 loaded_mu_b_hat = loaded_params['optimized_mu_b_hat']
 loaded_sigma_b_hat = loaded_params['optimized_sigma_b_hat']
 loaded_alpha_rho_hat = loaded_params['optimized_alpha_rho_hat']
@@ -114,9 +105,12 @@ loaded_alpha_hat = loaded_params['optimized_alpha_hat']
 loaded_gamma = loaded_params['optimized_gamma']
 loaded_beta = loaded_params['optimized_beta']
 
+alpha_sum = sum(loaded_alpha_hat.values())
+
+# compute  pi
 loaded_pi_hat = {
-    1: torch.tensor(0.5, device=device),
-    2: torch.tensor(0.5, device=device)
+    k: loaded_alpha_hat[k] / alpha_sum
+    for k in loaded_alpha_hat
 }
 
 
@@ -331,42 +325,33 @@ data_dicts_tests, _, _ = create_data_dicts(test_data_transformed, sensors_list)
 loaded_hyperparameters = {}
 loaded_lambda_hyp = {}
 
-if t == 10:
-    sensor_gp_hyperparameter_paths = {
-        'sensor 1': "./sensor_1/optim_test_hyperparams_10_final_2025-01-03_13-54-41/iteration_40000"
-                    "/optim_test_hyperparams_10_final_40000.pth",
-
-        'sensor 2': "./sensor_2/optim_test_hyperparams_10_final_2025-01-03_13-57-12/iteration_40000"
-                    "/optim_test_hyperparams_10_final_40000.pth"
-    }
 
 if t == 20:
     sensor_gp_hyperparameter_paths = {
-        'sensor 1': "./sensor_1/optim_test_hyperparams_20_final_2025-01-03_14-09-20/iteration_40000"
-                    "/optim_test_hyperparams_20_final_40000.pth",
+        'sensor 1': "../CMGP\sensor_1\optimized_CMGP_hyperparameters\optimized_test_units_CMGP_hyperparameters_20"
+                    "\optimized_test_units_hyperparameters_20.pth",
 
-        'sensor 2': "./sensor_2/optim_test_hyperparams_20_final_2025-01-03_14-19-20/iteration_40000"
-                    "/optim_test_hyperparams_20_final_40000.pth"
+        'sensor 2': "../CMGP\sensor_2\optimized_CMGP_hyperparameters\optimized_test_units_CMGP_hyperparameters_20"
+                    "\optimized_test_units_hyperparameters_20.pth"
     }
 
 if t == 50:
     sensor_gp_hyperparameter_paths = {
-        'sensor 1': "./sensor_1/optim_test_hyperparams_50_final_2025-01-04_09-08-59/iteration_40000"
-                    "/optim_test_hyperparams_50_final_40000.pth",
+        'sensor 1': "../CMGP/sensor_1/optimized_CMGP_hyperparameters/optimized_test_units_CMGP_hyperparameters_50"
+                    "/optimized_test_units_hyperparameters_50.pth",
 
-        'sensor 2': "./sensor_2/optim_test_hyperparams_50_final_2025-01-04_09-10-29/iteration_40000"
-                    "/optim_test_hyperparams_50_final_40000.pth"
+        'sensor 2': "../CMGP/sensor_2/optimized_CMGP_hyperparameters/optimized_test_units_CMGP_hyperparameters_50"
+                    "/optimized_test_units_hyperparameters_50.pth"
     }
 
 if t == 75:
     sensor_gp_hyperparameter_paths = {
-        'sensor 1': "./sensor_1/optim_test_hyperparams_75_final_2025-01-14_13-32-52/iteration_50000"
-                    "/optim_test_hyperparams_75_final_50000.pth",
+        'sensor 1': "../CMGP/sensor_1/optimized_CMGP_hyperparameters/optimized_test_units_CMGP_hyperparameters_75"
+                    "/optimized_test_units_hyperparameters_75.pth",
 
-        'sensor 2': "./sensor_2/optim_test_hyperparams_75_final_2025-01-14_13-35-03/iteration_50000"
-                    "/optim_test_hyperparams_75_final_50000.pth"
+        'sensor 2': "../CMGP/sensor_2/optimized_CMGP_hyperparameters/optimized_test_units_CMGP_hyperparameters_75"
+                    "/optimized_test_units_hyperparameters_75.pth"
     }
-
 
 for sensor, path in sensor_gp_hyperparameter_paths.items():
     loaded_hyperparams = torch.load(path, map_location=device)
@@ -406,9 +391,8 @@ for (sensor, fm) in failure_modes_sensors:
     }
 
 ########################################################################################################################
-
-file_path_fm1 = ('./fm1_data/B_values_failure_times_fm1.csv')
-file_path_fm2 = ('./fm2_data/B_values_failure_times_fm2.csv')
+file_path_fm1 = ('../Data_Generation/fm1_data/B_values_failure_times_fm1.csv')
+file_path_fm2 = ('../Data_Generation/fm2_data/B_values_failure_times_fm2.csv')
 
 df_fm1 = pd.read_csv(file_path_fm1)
 df_fm2 = pd.read_csv(file_path_fm2)
@@ -616,14 +600,14 @@ for unit in unit_t:
         #     "label": "NN-joint(ideal)-500",
         #     "color": "purple"
         # },
-        # "s_NN_mis": {
-        #     "fm1_path": f"./NN_model_NS_{NS}_FM1_misspec_2/survivals_probs_loss{NN_loss_type}_t{t}_ndata50/sp_{unit_name}.npy",
-        #     "fm2_path": f"./NN_model_NS_{NS}_FM2_misspec_2/survivals_probs_loss{NN_loss_type}_t{t}_ndata50/sp_{unit_name}.npy",
-        #     "prob_folder": f"./NN_model_NS_{NS}_misspec_prob_2",
-        #     "label": "NN-joint(mis)",
-        #     "color": "red"
-        # },
-        # # "s_NN_500_mis": {
+        "s_NN_mis": {
+            "fm1_path": f"./NN_model_NS_{NS}_FM1_misspec_2/survivals_probs_loss{NN_loss_type}_t{t}_ndata50/sp_{unit_name}.npy",
+            "fm2_path": f"./NN_model_NS_{NS}_FM2_misspec_2/survivals_probs_loss{NN_loss_type}_t{t}_ndata50/sp_{unit_name}.npy",
+            "prob_folder": f"./NN_model_NS_{NS}_misspec_prob_2",
+            "label": "NN-joint(mis)",
+            "color": "red"
+        },
+        # "s_NN_500_mis": {
         #     "fm1_path": f"./NN_model_NS_{NS}_FM1_misspec_500_2/survivals_probs_loss{NN_loss_type}_t{t}_ndata500/sp_{unit_name}.npy",
         #     "fm2_path": f"./NN_model_NS_{NS}_FM2_misspec_500_2/survivals_probs_loss{NN_loss_type}_t{t}_ndata500/sp_{unit_name}.npy",
         #     "prob_folder": f"./NN_model_NS_{NS}_misspec_500_prob_2",
@@ -632,77 +616,66 @@ for unit in unit_t:
         # },
     }
 
-    for key, dataset in datasets.items():
-        s_fm1 = np.load(dataset["fm1_path"])
-        s_fm2 = np.load(dataset["fm2_path"])
-        max_cols = max(s_fm1.shape[1], s_fm2.shape[1])
-        if s_fm1.shape[1] < max_cols:
-            s_fm1 = np.hstack((s_fm1, np.zeros((s_fm1.shape[0], max_cols - s_fm1.shape[1]))))
-        if s_fm2.shape[1] < max_cols:
-            s_fm2 = np.hstack((s_fm2, np.zeros((s_fm2.shape[0], max_cols - s_fm2.shape[1]))))
-        # probabilities_df = pd.read_csv(
-        #     f'{dataset["prob_folder"]}/fm_probabilities_alpha10000_2000epoch/t_{t}/unit_{unit_name}_probabilities.csv')
-        # p1 = probabilities_df['fm_1_prob'].values[0]
-        # p2 = probabilities_df['fm_2_prob'].values[0]
-
-        probabilities_df = pd.read_csv(
-            f'{dataset["prob_folder"]}/fm_probabilities/t_{t}/fm_probabilities_t_{t}.csv')
-
-        unit_data = probabilities_df[probabilities_df['ID'] == unit_name]
-        if not unit_data.empty:
-            p1 = unit_data['fm_1_prob'].values[0]
-            p2 = unit_data['fm_2_prob'].values[0]
-        else:
-            raise ValueError(f"Unit {unit_name} not found in the probabilities data.")
-
-        num_samples_fm1 = int(1000 * p1.sum())
-        num_samples_fm2 = 1000 - num_samples_fm1
-        selected_indices_fm1 = np.random.choice(len(s_fm1), size=num_samples_fm1, replace=True)
-        selected_indices_fm2 = np.random.choice(len(s_fm2), size=num_samples_fm2, replace=True)
-        s_combined = np.vstack((s_fm1[selected_indices_fm1], s_fm2[selected_indices_fm2]))
-
-        est_sz_mean = np.median(s_combined, axis=0)
-        est_sz_lower = np.quantile(s_combined, 0.025, axis=0)
-        est_sz_upper = np.quantile(s_combined, 0.975, axis=0)
-
-        mean_bounds_dict[key] = {
-            'mean': est_sz_mean,
-            'lower': est_sz_lower,
-            'upper': est_sz_upper
-        }
-
-    df = pd.read_csv(file_path, delimiter='\t')
-
-    for key, bounds in mean_bounds_dict.items():
-        label = datasets[key]["label"].replace('-', '_').replace(' ', '_')
-        df[f'est_sz_mean_{label}'] = bounds['mean'][:len(df)]
-        df[f'est_sz_lower_{label}'] = bounds['lower'][:len(df)]
-        df[f'est_sz_upper_{label}'] = bounds['upper'][:len(df)]
-
-    df.to_csv(file_path, sep='\t', index=False)
-
-    # plt.figure(figsize=(10, 6))
-    # plt.plot(range(t_star, t_max), survival_means, marker='o', label='CMGP-Cox')
-    # plt.fill_between(range(t_star, t_max), survival_lower_bounds, survival_upper_bounds, color='b', alpha=0.2,
-    #                  label='CMGP-Cox - 95% CI')
+    # for key, dataset in datasets.items():
+    #     s_fm1 = np.load(dataset["fm1_path"])
+    #     s_fm2 = np.load(dataset["fm2_path"])
+    #     max_cols = max(s_fm1.shape[1], s_fm2.shape[1])
+    #     if s_fm1.shape[1] < max_cols:
+    #         s_fm1 = np.hstack((s_fm1, np.zeros((s_fm1.shape[0], max_cols - s_fm1.shape[1]))))
+    #     if s_fm2.shape[1] < max_cols:
+    #         s_fm2 = np.hstack((s_fm2, np.zeros((s_fm2.shape[0], max_cols - s_fm2.shape[1]))))
+    #     probabilities_df = pd.read_csv(
+    #         f'{dataset["prob_folder"]}/fm_probabilities_alpha10000_2000epoch/t_{t}/unit_{unit_name}_probabilities.csv')
+    #     p1 = probabilities_df['fm_1_prob'].values[0]
+    #     p2 = probabilities_df['fm_2_prob'].values[0]
+    #     num_samples_fm1 = int(1000 * p1.sum())
+    #     num_samples_fm2 = 1000 - num_samples_fm1
+    #     selected_indices_fm1 = np.random.choice(len(s_fm1), size=num_samples_fm1, replace=False)
+    #     selected_indices_fm2 = np.random.choice(len(s_fm2), size=num_samples_fm2, replace=False)
+    #     s_combined = np.vstack((s_fm1[selected_indices_fm1], s_fm2[selected_indices_fm2]))
     #
-    # plt.plot(range(t_star, t_max), survival, marker='o', linestyle='--', label='True Survival Probability',
-    #          color='darkorange')
+    #     est_sz_mean = np.median(s_combined, axis=0)
+    #     est_sz_lower = np.quantile(s_combined, 0.025, axis=0)
+    #     est_sz_upper = np.quantile(s_combined, 0.975, axis=0)
+    #
+    #     mean_bounds_dict[key] = {
+    #         'mean': est_sz_mean,
+    #         'lower': est_sz_lower,
+    #         'upper': est_sz_upper
+    #     }
+    #
+    # df = pd.read_csv(file_path, delimiter='\t')
     #
     # for key, bounds in mean_bounds_dict.items():
-    #     label = datasets[key]["label"]
-    #     plt.plot(range(t_star, t_max), bounds['mean'], label=label, color=datasets[key]["color"])
-    #     plt.fill_between(range(t_star, t_max), bounds['lower'], bounds['upper'], alpha=0.2, color=datasets[key]["color"])
+    #     label = datasets[key]["label"].replace('-', '_').replace(' ', '_')
+    #     df[f'est_sz_mean_{label}'] = bounds['mean'][:len(df)]
+    #     df[f'est_sz_lower_{label}'] = bounds['lower'][:len(df)]
+    #     df[f'est_sz_upper_{label}'] = bounds['upper'][:len(df)]
     #
-    # plt.xlabel('Time')
-    # plt.ylabel('Probability of Survival')
-    # plt.title(f'Survival Probability with 95% Confidence Interval - unit ID:{unit_name}')
-    # plt.grid(True)
-    # plt.legend()
-    # survival_plot_path = os.path.join(survival_plot_dir, f'survival_plot_unit_{unit_name}.png')
-    # plt.savefig(survival_plot_path)
-    # plt.close()
-    #
+    # df.to_csv(file_path, sep='\t', index=False)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(t_star, t_max), survival_means, marker='o', label='CMGP-Cox')
+    plt.fill_between(range(t_star, t_max), survival_lower_bounds, survival_upper_bounds, color='b', alpha=0.2,
+                     label='CMGP-Cox - 95% CI')
+
+    plt.plot(range(t_star, t_max), survival, marker='o', linestyle='--', label='True Survival Probability',
+             color='darkorange')
+
+    for key, bounds in mean_bounds_dict.items():
+        label = datasets[key]["label"]
+        plt.plot(range(t_star, t_max), bounds['mean'], label=label, color=datasets[key]["color"])
+        plt.fill_between(range(t_star, t_max), bounds['lower'], bounds['upper'], alpha=0.2, color=datasets[key]["color"])
+
+    plt.xlabel('Time')
+    plt.ylabel('Probability of Survival')
+    plt.title(f'Survival Probability with 95% Confidence Interval - unit ID:{unit_name}')
+    plt.grid(True)
+    plt.legend()
+    survival_plot_path = os.path.join(survival_plot_dir, f'survival_plot_unit_{unit_name}.png')
+    plt.savefig(survival_plot_path)
+    plt.close()
+
     # plt.boxplot(abs_errors_for_unit)
     # plt.title(f'Absolute Error i:{unit_name}_{unit_mae[unit_name]} ')
     # plt.xlabel('Unit')
@@ -712,7 +685,7 @@ for unit in unit_t:
     # plt.savefig(box_plot_path)
     # plt.close()
 
-#############################################################
+########################################################################################################################
 import time
 
 end_time = time.time()

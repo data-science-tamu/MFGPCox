@@ -372,11 +372,11 @@ if t == 25:
 
 if t == 50:
     sensor_gp_hyperparameter_paths = {
-        'sensor 1': "./sensor_1/optim_test_hyperparams_50_final_2025-01-04_09-08-59/iteration_40000"
-                    "/optim_test_hyperparams_50_final_40000.pth",
+        'sensor 1': "./sensor_1/optimized_test_units_CMGP_hyperparameters_50/iteration_40000"
+                    "/optimized_test_units_hyperparameters_50.pth",
 
-        'sensor 2': "./sensor_2/optim_test_hyperparams_50_final_2025-01-04_09-10-29/iteration_40000"
-                    "/optim_test_hyperparams_50_final_40000.pth"
+        'sensor 2': "./sensor_2/optimized_test_units_CMGP_hyperparameters_50/iteration_40000"
+                    "/optimized_test_units_hyperparameters_50.pth"
     }
 
 

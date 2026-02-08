@@ -136,9 +136,9 @@ sensor_gp_hyperparameter_paths = {
 
 
 # sensor_gp_hyperparameter_paths = {
-#     'sensor 1': r"sensor_1/optim_test_hyperparams_20_final_2025-01-03_14-09-20/iteration_45000/optim_test_hyperparams_20_final_45000.pth",
+#     'sensor 1': r"sensor_1/optimized_test_units_CMGP_hyperparameters_20/iteration_45000/optim_test_hyperparams_20_final_45000.pth",
 #
-#     'sensor 2': r"sensor_2/optim_test_hyperparams_20_final_2025-01-03_14-19-20/iteration_45000/optim_test_hyperparams_20_final_45000.pth"
+#     'sensor 2': r"sensor_2/optimized_test_units_CMGP_hyperparameters_20/iteration_45000/optim_test_hyperparams_20_final_45000.pth"
 # }
 
 

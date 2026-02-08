@@ -17,7 +17,7 @@ coverage_interval_ratio_details = []
 for unit_name in chain(range(51, 61), range(111, 121)):
     print(f"Processing unit: {unit_name}")
 
-    tsv_file_path = rf"C:./sp_{t}_exact_ns10000\{unit_name}.tsv"
+    tsv_file_path = rf"C:\Users\sina.aghaee\Desktop\GitLab\CM\numerical_study\numerical_study_19\sensor 1_sensor 2_t_{t}_NNloss2_c-fm_sp-ind_cprob_median_c_elbo\sp_{t}_exact_ns10000\{unit_name}.tsv"
 
     try:
         df = pd.read_csv(tsv_file_path, sep="\t")
