@@ -31,7 +31,7 @@ def plot_survival_probabilities_grid(units, output_dir, times):
         for j, t in enumerate(times):
             ax = axes[i, j]
             for unit_name in units:
-                tsv_file_path = rf"../Prediction/sensor 1_sensor 2_t_{t}_NNloss2_c-fm_sp-ind_cprob_median_c_elbo/sp_{t}_exact_ns10000/{unit_name}.tsv"
+                tsv_file_path = rf"../Prediction/sensor 1_sensor 2_t_{t}/sp_{t}_exact_ns10000/{unit_name}.tsv"
                 try:
                     df = pd.read_csv(tsv_file_path, sep="\t")
                     df_aligned = align_data_with_time(df, "Time", df.columns, x_range)

@@ -223,6 +223,35 @@ alpha0[3] = torch.tensor(0.1, device=device)
 # alpha_rho_0 = {1: torch.tensor(0.0225, device='cuda:0'), 2: torch.tensor(0.0400, device='cuda:0')}
 # beta_rho_0 = {1: torch.tensor(1.0, device='cuda:0'), 2: torch.tensor(1.0, device='cuda:0')}
 
+
+
+
+# beta_rho_0 = {
+#     1: torch.tensor(0.002, device=device),
+#     2: torch.tensor(0.002, device=device),
+#     3: torch.tensor(0.002, device=device)
+#
+# }
+#
+# mu_b_0 = {
+#     1: torch.tensor(0.0, device=device),
+#     2: torch.tensor(0.0, device=device),
+#     3: torch.tensor(0.0, device=device)
+# }
+#
+# sigma_b_0 = {
+#     1: torch.tensor(10.0, device=device),
+#     2: torch.tensor(10.0, device=device),
+#     3: torch.tensor(10.0, device=device)
+# }
+#
+# alpha_rho_0 = {
+#     1: torch.tensor(0.0002, device=device),
+#     2: torch.tensor(0.0002, device=device),
+#     3: torch.tensor(0.0002, device=device)
+# }
+
+
 mu_b_0 = {1: torch.tensor(0, device=device), 2: torch.tensor(0, device=device), 3: torch.tensor(0, device=device)}
 sigma_b_0 = {1: torch.tensor(10, device=device), 2: torch.tensor(10, device=device), 3: torch.tensor(10, device=device)}
 alpha_rho_0 = {1: torch.tensor(1, device=device), 2: torch.tensor(1, device=device), 3: torch.tensor(1, device=device)}

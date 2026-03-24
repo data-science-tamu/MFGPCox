@@ -41,7 +41,7 @@ class Config:
     # Hyperparameters
     SEED = 423
     INDUCING_POINTS = 50
-    NUM_ITERATIONS = 15000
+    NUM_ITERATIONS = 12000
     LEARNING_RATE = 0.01
 
     # Device Logic
@@ -196,10 +196,23 @@ initial_beta[('sensor 2', 1)] = torch.tensor(0.01, device=device)
 initial_beta[('sensor 2', 2)] = torch.tensor(0.01, device=device)
 
 # --- Prior Distributions for b and rho ---
-mu_b_0 = {1: torch.tensor(0.0, device=device), 2: torch.tensor(0.0, device=device)}
-sigma_b_0 = {1: torch.tensor(10.0, device=device), 2: torch.tensor(10.0, device=device)}
-alpha_rho_0 = {1: torch.tensor(1.0, device=device), 2: torch.tensor(1.0, device=device)}
-beta_rho_0 = {1: torch.tensor(0.1, device=device), 2: torch.tensor(0.1, device=device)}
+
+# mu_b_0 = {1: torch.tensor(0.0, device=device), 2: torch.tensor(0.0, device=device)}
+# sigma_b_0 = {1: torch.tensor(10.0, device=device), 2: torch.tensor(10.0, device=device)}
+# alpha_rho_0 = {1: torch.tensor(1.0, device=device), 2: torch.tensor(1.0, device=device)}
+# beta_rho_0 = {1: torch.tensor(0.1, device=device), 2: torch.tensor(0.1, device=device)}
+
+
+mu_b_0 = {1: torch.tensor(0.0, device=device),
+          2: torch.tensor(0.0, device=device)}
+sigma_b_0 = {1: torch.tensor(10.0, device=device),
+             2: torch.tensor(10.0, device=device)}
+alpha_rho_0 = {1: torch.tensor(0.0002, device=device),
+               2: torch.tensor(0.0002, device=device)}
+beta_rho_0 = {1: torch.tensor(0.002, device=device),
+              2: torch.tensor(0.002, device=device)}
+
+
 
 # --- Variational Parameters (Hats) ---
 initial_mu_b_hat = {mode: torch.rand(1, device=device) for mode in failure_modes}

@@ -30,7 +30,7 @@ sensors_list = ["sensor 1", "sensor 2"]
 
 sensors_str = "_".join(sensors_list)
 
-save_directory = f'{sensors_str}_t_{t}_NNloss{NN_loss_type}_c-fm_sp-ind_cprob_median_c_elbo_new_run'
+save_directory = f'{sensors_str}_t_{t}__new_run'
 
 # if os.path.exists(save_directory):
 #     raise FileExistsError(f"The directory '{save_directory}' already exists.")

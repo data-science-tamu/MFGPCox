@@ -74,7 +74,7 @@ def plot_separate_boxplots(file_paths, time_points, model_names, colors, y_margi
 
 # Define file paths and global y-limits
 time_points = [20, 50, 75]
-file_paths = [f"./Absolute_Errors{t}.csv" for t in time_points]
+file_paths = [f"./Absolute_Errors_revision_{t}.csv" for t in time_points]
 model_names = ['CMGP-Cox', 'DeepBranched', 'NN_joint(ideal)', 'NN_joint(mis)', 'DeepSurv', 'Cox']
 colors = ['white', 'white', 'white', 'white', 'white', 'white']
 
