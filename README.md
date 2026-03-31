@@ -70,7 +70,7 @@ If you use this code or find it helpful, please cite:
 @article{aghaee2025bayesian,
   title={Bayesian Joint Model of Multi-Sensor and Failure Event Data for Multi-Mode Failure Prediction},
   author={Aghaee Dabaghan Fard, Sina and Kim, Minhee and Deep, Akash and Lee, Jaesung},
-  journal={Technometrics},
-  note={Accepted},
-  year={2026}
+  journal={arXiv e-prints},
+  pages={arXiv--2506},
+  year={2025}
 }
