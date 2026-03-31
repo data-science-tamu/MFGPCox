@@ -58,7 +58,7 @@ Python dependency list for the main code environment.
 This repository accompanies the following paper:
 
 📌 https://arxiv.org/abs/2506.17036  
-(*Accepted at Technometric, 2026*)
+(*Accepted at Technometrics, 2026*)
 
 ---
 
