@@ -70,11 +70,14 @@ This repository accompanies the following paper:
 If you use this code or find it helpful, please cite:
 
 ```bibtex
-@article{aghaee2026bayesian,
-  title={Bayesian Joint Model of Multi-Sensor and Failure Event Data for Multi-Mode Failure Prediction},
-  author={Aghaee Dabaghan Fard, Sina and Kim, Minhee and Deep, Akash and Lee, Jaesung},
-  journal={Technometrics},
-  year={2026},
-  doi={10.1080/00401706.2026.2653564},
-  note={arXiv:2506.17036}
+author = {Sina Aghaee Dabaghan Fard and Minhee Kim and Akash Deep and Jaesung Lee},
+title = {Bayesian Joint Model of Multi-Sensor and Failure Event Data for Multi-Mode Failure Prediction},
+journal = {Technometrics},
+volume = {0},
+number = {ja},
+pages = {1--24},
+year = {2026},
+publisher = {Taylor \& Francis},
+doi = {10.1080/00401706.2026.2653564},
 }
+
