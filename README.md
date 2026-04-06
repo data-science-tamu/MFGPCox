@@ -57,8 +57,11 @@ Python dependency list for the main code environment.
 
 This repository accompanies the following paper:
 
+📌 https://doi.org/10.1080/00401706.2026.2653564  
+(*Published in Technometrics, 2026*)
+
 📌 https://arxiv.org/abs/2506.17036  
-(*Accepted at Technometrics, 2026*)
+(*arXiv preprint*)
 
 ---
 
@@ -67,10 +70,11 @@ This repository accompanies the following paper:
 If you use this code or find it helpful, please cite:
 
 ```bibtex
-@article{aghaee2025bayesian,
+@article{aghaee2026bayesian,
   title={Bayesian Joint Model of Multi-Sensor and Failure Event Data for Multi-Mode Failure Prediction},
   author={Aghaee Dabaghan Fard, Sina and Kim, Minhee and Deep, Akash and Lee, Jaesung},
-  journal={arXiv e-prints},
-  pages={arXiv--2506},
-  year={2025}
+  journal={Technometrics},
+  year={2026},
+  doi={10.1080/00401706.2026.2653564},
+  note={arXiv:2506.17036}
 }
