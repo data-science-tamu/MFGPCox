@@ -74,7 +74,7 @@ This repository accompanies the following paper:
 (*Published in Technometrics, 2026*)
 
 📌 https://arxiv.org/abs/2506.17036  
-(*arXiv preprint*)
+(*This is a preprint version. The final, peer-reviewed version is available in Technometrics and should be considered the authoritative version.*)
 
 ---
 
