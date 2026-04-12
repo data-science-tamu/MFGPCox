@@ -53,6 +53,19 @@ Python dependency list for the main code environment.
 
 ---
 
+## 📄 Data Availability
+
+The dataset used in the case study is publicly available and was introduced in:
+
+Z. Li, Y. Li, X. Yue, E. Zio, and J. Wu, "A Deep Branched Network for Failure Mode Diagnostics and Remaining Useful Life Prediction," *IEEE Transactions on Instrumentation and Measurement*, vol. 71, pp. 1–11, 2022, Art no. 3519111.  
+DOI: [10.1109/TIM.2022.3195280](https://doi.org/10.1109/TIM.2022.3195280)
+
+This dataset can be accessed at:
+
+📌 https://github.com/kernelLZ/Turbofan-Engine-Degradation-Dataset-with-Multiple-Failure-Modes
+
+---
+
 ## 📄 Paper
 
 This repository accompanies the following paper:
