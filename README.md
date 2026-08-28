@@ -1,4 +1,8 @@
-# Bayesian Joint Model of Multi-Sensor and Failure Event Data for Multi-Mode Failure Prediction
+# MFGPCox
+
+Code for the paper **Bayesian Joint Model of Multi-Sensor and Failure Event Data for Multi-Mode Failure Prediction**.  
+Published paper: [Technometrics](https://doi.org/10.1080/00401706.2026.2653564)  
+Preprint: [arXiv:2506.17036](https://arxiv.org/abs/2506.17036)
 
 ## 📄 Overview
 
